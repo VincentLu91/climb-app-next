@@ -7,6 +7,7 @@ export default function UploadForm() {
   const supabase = createClient();
 
   const [file, setFile] = useState(null);
+  const [analysisResult, setAnalysisResult] = useState("");
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -161,6 +162,8 @@ export default function UploadForm() {
         return;
       }
 
+      setAnalysisResult(analysisText);
+
       console.log("Saved analysis result:", analysisText);
     }
 
@@ -182,6 +185,13 @@ export default function UploadForm() {
       {file && <p>Selected: {file.name}</p>}
 
       <button type="submit">Upload</button>
+
+      {analysisResult && (
+        <div>
+          <h2>Climbing Feedback</h2>
+          <p>{analysisResult}</p>
+        </div>
+      )}
     </form>
   );
 }
