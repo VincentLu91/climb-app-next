@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 async function getFileHash(file) {
@@ -14,6 +15,7 @@ async function getFileHash(file) {
 
 export default function UploadForm({ initialCoachingSessionId = null }) {
   const supabase = createClient();
+  const router = useRouter();
 
   const [file, setFile] = useState(null);
   const [analysisResult, setAnalysisResult] = useState("");
@@ -26,7 +28,7 @@ export default function UploadForm({ initialCoachingSessionId = null }) {
   const [sessionFileHashes, setSessionFileHashes] = useState([]);
 
   useEffect(() => {
-    async function loadNextAttemptNumber() {
+    async function loadCoachingSessionState() {
       if (!initialCoachingSessionId) {
         return;
       }
@@ -35,21 +37,24 @@ export default function UploadForm({ initialCoachingSessionId = null }) {
 
       const { data, error } = await supabase
         .from("uploads")
-        .select("attempt_number")
+        .select("attempt_number, file_hash")
         .eq("coaching_session_id", initialCoachingSessionId)
-        .order("attempt_number", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .order("attempt_number", { ascending: true });
 
       if (error) {
         console.error("Failed to load coaching session attempts:", error);
         return;
       }
 
-      setAttemptNumber((data?.attempt_number ?? 0) + 1);
+      const lastAttempt = data?.at(-1)?.attempt_number ?? 0;
+
+      setAttemptNumber(lastAttempt + 1);
+      setSessionFileHashes(
+        data?.map((upload) => upload.file_hash).filter(Boolean) ?? [],
+      );
     }
 
-    loadNextAttemptNumber();
+    loadCoachingSessionState();
   }, [initialCoachingSessionId]);
 
   async function handleSubmit(event) {
@@ -165,6 +170,7 @@ export default function UploadForm({ initialCoachingSessionId = null }) {
         media_type: mediaType,
         coaching_session_id: activeCoachingSessionId,
         attempt_number: attemptNumber,
+        file_hash: currentFileHash,
       })
       .select()
       .single();
@@ -298,6 +304,11 @@ export default function UploadForm({ initialCoachingSessionId = null }) {
   }
 
   function handleNextAttempt() {
+    if (!initialCoachingSessionId && coachingSessionId) {
+      router.push(`/session/${coachingSessionId}`);
+      return;
+    }
+
     setAttemptNumber((currentAttempt) => currentAttempt + 1);
     setFile(null);
     setAnalysisResult("");
@@ -311,6 +322,10 @@ export default function UploadForm({ initialCoachingSessionId = null }) {
     setAnalysisResult("");
     setSessionFileHashes([]);
     setAwaitingAttemptChoice(false);
+
+    if (initialCoachingSessionId) {
+      router.push("/upload");
+    }
   }
 
   return (
