@@ -1,10 +1,34 @@
 export async function POST(request) {
   try {
-    const { videoUrl } = await request.json();
+    const { videoUrl, attemptNumber, previousAnalysisText } =
+      await request.json();
 
     if (!videoUrl) {
       return Response.json({ error: "Missing videoUrl." }, { status: 400 });
     }
+
+    const analysisPrompt =
+      attemptNumber > 1 && previousAnalysisText
+        ? `You are an AI climbing coach following the same climber on the same problem.
+
+This is Attempt ${attemptNumber}.
+
+Previous coaching feedback:
+${previousAnalysisText}
+
+Analyze the CURRENT attempt. Focus on whether the climber addressed the previous issue. Do not claim improvement unless it is visible in the current video.
+
+Respond in exactly this format:
+
+What changed: <one concise sentence about whether the previous issue improved, stayed the same, or worsened>
+Main issue now: <one concise sentence identifying the most important current limiter>
+Next attempt: <one concise actionable sentence>`
+        : `You are an AI climbing coach. Analyze this climbing attempt. Do not describe the entire video. Identify the single most important technical issue preventing progress and one specific action for the climber's very next attempt.
+
+Respond in exactly this format:
+
+Main issue: <one concise sentence>
+Next attempt: <one concise actionable sentence>`;
 
     const falResponse = await fetch(
       "https://queue.fal.run/fal-ai/video-understanding",
@@ -16,8 +40,7 @@ export async function POST(request) {
         },
         body: JSON.stringify({
           video_url: videoUrl,
-          prompt:
-            "You are an AI climbing coach. Analyze this climbing attempt. Do not describe the entire video. Identify the single most important technical issue preventing progress and one specific action for the climber's very next attempt. Respond in exactly this format:\n\nMain issue: <one concise sentence>\nNext attempt: <one concise actionable sentence>",
+          prompt: analysisPrompt,
           detailed_analysis: false,
         }),
       },

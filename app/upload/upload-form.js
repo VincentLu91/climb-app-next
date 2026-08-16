@@ -3,17 +3,38 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
+async function getFileHash(file) {
+  const fileBuffer = await file.arrayBuffer();
+  const hashBuffer = await crypto.subtle.digest("SHA-256", fileBuffer);
+
+  return Array.from(new Uint8Array(hashBuffer))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
 export default function UploadForm() {
   const supabase = createClient();
 
   const [file, setFile] = useState(null);
   const [analysisResult, setAnalysisResult] = useState("");
 
+  const [coachingSessionId, setCoachingSessionId] = useState(null);
+  const [attemptNumber, setAttemptNumber] = useState(1);
+  const [awaitingAttemptChoice, setAwaitingAttemptChoice] = useState(false);
+  const [sessionFileHashes, setSessionFileHashes] = useState([]);
+
   async function handleSubmit(event) {
     event.preventDefault();
 
     if (!file) {
       alert("Choose a file first.");
+      return;
+    }
+
+    const currentFileHash = await getFileHash(file);
+
+    if (sessionFileHashes.includes(currentFileHash)) {
+      alert("You've already submitted this video for this problem.");
       return;
     }
 
@@ -25,6 +46,70 @@ export default function UploadForm() {
     if (userError || !user) {
       alert("You must be logged in.");
       return;
+    }
+
+    let activeCoachingSessionId = coachingSessionId;
+
+    if (!activeCoachingSessionId) {
+      const { data: sessionRow, error: sessionError } = await supabase
+        .from("coaching_sessions")
+        .insert({
+          user_id: user.id,
+        })
+        .select()
+        .single();
+
+      if (sessionError) {
+        console.error("Failed to create coaching session:", sessionError);
+        alert("Failed to start coaching session.");
+        return;
+      }
+
+      activeCoachingSessionId = sessionRow.id;
+      setCoachingSessionId(sessionRow.id);
+    }
+
+    let previousUploadRow = null;
+    let previousAnalysisText = null;
+
+    if (attemptNumber > 1) {
+      const { data, error } = await supabase
+        .from("uploads")
+        .select("id, attempt_number")
+        .eq("coaching_session_id", activeCoachingSessionId)
+        .lt("attempt_number", attemptNumber)
+        .order("attempt_number", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) {
+        console.error("Failed to load previous attempt:", error);
+        alert("Failed to load the previous attempt.");
+        return;
+      }
+
+      previousUploadRow = data;
+
+      if (previousUploadRow) {
+        const { data: previousAnalysis, error: previousAnalysisError } =
+          await supabase
+            .from("analyses")
+            .select("result")
+            .eq("upload_id", previousUploadRow.id)
+            .eq("status", "completed")
+            .maybeSingle();
+
+        if (previousAnalysisError) {
+          console.error(
+            "Failed to load previous analysis:",
+            previousAnalysisError,
+          );
+          alert("Failed to load the previous coaching feedback.");
+          return;
+        }
+
+        previousAnalysisText = previousAnalysis?.result ?? null;
+      }
     }
 
     const filePath = `${user.id}/${Date.now()}-${file.name}`;
@@ -49,6 +134,8 @@ export default function UploadForm() {
         user_id: user.id,
         media_path: filePath,
         media_type: mediaType,
+        coaching_session_id: activeCoachingSessionId,
+        attempt_number: attemptNumber,
       })
       .select()
       .single();
@@ -93,6 +180,8 @@ export default function UploadForm() {
         },
         body: JSON.stringify({
           videoUrl: signedUrlData.signedUrl,
+          attemptNumber,
+          previousAnalysisText,
         }),
       });
 
@@ -163,6 +252,11 @@ export default function UploadForm() {
       }
 
       setAnalysisResult(analysisText);
+      setSessionFileHashes((currentHashes) => [
+        ...currentHashes,
+        currentFileHash,
+      ]);
+      setAwaitingAttemptChoice(true);
 
       console.log("Saved analysis result:", analysisText);
     }
@@ -174,22 +268,55 @@ export default function UploadForm() {
     alert("Upload and analysis record saved.");
   }
 
+  function handleNextAttempt() {
+    setAttemptNumber((currentAttempt) => currentAttempt + 1);
+    setFile(null);
+    setAnalysisResult("");
+    setAwaitingAttemptChoice(false);
+  }
+
+  function handleNewProblem() {
+    setCoachingSessionId(null);
+    setAttemptNumber(1);
+    setFile(null);
+    setAnalysisResult("");
+    setSessionFileHashes([]);
+    setAwaitingAttemptChoice(false);
+  }
+
   return (
     <form onSubmit={handleSubmit}>
-      <input
-        type="file"
-        accept="image/*,video/*"
-        onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-      />
+      {!awaitingAttemptChoice && (
+        <>
+          <input
+            key={`${coachingSessionId}-${attemptNumber}`}
+            type="file"
+            accept="image/*,video/*"
+            onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+          />
 
-      {file && <p>Selected: {file.name}</p>}
+          {file && <p>Selected: {file.name}</p>}
 
-      <button type="submit">Upload</button>
+          <button type="submit">Upload</button>
+        </>
+      )}
 
       {analysisResult && (
         <div>
           <h2>Climbing Feedback</h2>
           <p>{analysisResult}</p>
+
+          {awaitingAttemptChoice && (
+            <div>
+              <button type="button" onClick={handleNextAttempt}>
+                Next attempt on this problem
+              </button>
+
+              <button type="button" onClick={handleNewProblem}>
+                Start a different problem
+              </button>
+            </div>
+          )}
         </div>
       )}
     </form>
