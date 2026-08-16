@@ -58,8 +58,24 @@ export default function UploadForm() {
       return;
     }
 
+    const { data: analysisRow, error: analysisError } = await supabase
+      .from("analyses")
+      .insert({
+        upload_id: uploadRow.id,
+        status: "pending",
+      })
+      .select()
+      .single();
+
+    if (analysisError) {
+      console.error("Analysis insert error:", analysisError);
+      alert("Upload saved, but analysis record failed.");
+      return;
+    }
+
     console.log("Created upload row:", uploadRow);
-    alert("Upload saved.");
+    console.log("Created analysis row:", analysisRow);
+    alert("Upload and analysis record saved.");
   }
 
   return (
