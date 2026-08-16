@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 async function getFileHash(file) {
@@ -12,16 +12,45 @@ async function getFileHash(file) {
     .join("");
 }
 
-export default function UploadForm() {
+export default function UploadForm({ initialCoachingSessionId = null }) {
   const supabase = createClient();
 
   const [file, setFile] = useState(null);
   const [analysisResult, setAnalysisResult] = useState("");
 
-  const [coachingSessionId, setCoachingSessionId] = useState(null);
+  const [coachingSessionId, setCoachingSessionId] = useState(
+    initialCoachingSessionId,
+  );
   const [attemptNumber, setAttemptNumber] = useState(1);
   const [awaitingAttemptChoice, setAwaitingAttemptChoice] = useState(false);
   const [sessionFileHashes, setSessionFileHashes] = useState([]);
+
+  useEffect(() => {
+    async function loadNextAttemptNumber() {
+      if (!initialCoachingSessionId) {
+        return;
+      }
+
+      const supabase = createClient();
+
+      const { data, error } = await supabase
+        .from("uploads")
+        .select("attempt_number")
+        .eq("coaching_session_id", initialCoachingSessionId)
+        .order("attempt_number", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) {
+        console.error("Failed to load coaching session attempts:", error);
+        return;
+      }
+
+      setAttemptNumber((data?.attempt_number ?? 0) + 1);
+    }
+
+    loadNextAttemptNumber();
+  }, [initialCoachingSessionId]);
 
   async function handleSubmit(event) {
     event.preventDefault();
