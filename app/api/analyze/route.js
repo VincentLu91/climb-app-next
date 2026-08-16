@@ -17,8 +17,8 @@ export async function POST(request) {
         body: JSON.stringify({
           video_url: videoUrl,
           prompt:
-            "Analyze this climbing attempt. Identify the main technical issue and give one specific adjustment for the climber's next attempt.",
-          detailed_analysis: true,
+            "You are an AI climbing coach. Analyze this climbing attempt. Do not describe the entire video. Identify the single most important technical issue preventing progress and one specific action for the climber's very next attempt. Respond in exactly this format:\n\nMain issue: <one concise sentence>\nNext attempt: <one concise actionable sentence>",
+          detailed_analysis: false,
         }),
       },
     );
