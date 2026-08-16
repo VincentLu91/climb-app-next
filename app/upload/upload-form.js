@@ -73,8 +73,101 @@ export default function UploadForm() {
       return;
     }
 
+    const { data: signedUrlData, error: signedUrlError } =
+      await supabase.storage
+        .from("climbing-media")
+        .createSignedUrl(filePath, 3600);
+
+    if (signedUrlError) {
+      console.error("Signed URL error:", signedUrlError);
+      alert("Upload saved, but media URL creation failed.");
+      return;
+    }
+
+    if (mediaType === "video") {
+      const analyzeResponse = await fetch("/api/analyze", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          videoUrl: signedUrlData.signedUrl,
+        }),
+      });
+
+      const analyzeData = await analyzeResponse.json();
+
+      if (!analyzeResponse.ok) {
+        console.error("Analyze API error:", analyzeData);
+        alert("Upload saved, but AI analysis submission failed.");
+        return;
+      }
+
+      console.log("fal.ai submission:", analyzeData);
+
+      let completedAnalysis = null;
+
+      for (let attempt = 0; attempt < 30; attempt += 1) {
+        const statusResponse = await fetch(
+          `/api/analyze?requestId=${analyzeData.request_id}`,
+        );
+
+        const statusData = await statusResponse.json();
+
+        if (!statusResponse.ok) {
+          console.error("Analyze status error:", statusData);
+          alert("AI analysis was submitted, but status check failed.");
+          return;
+        }
+
+        console.log("fal.ai status:", statusData);
+
+        if (statusData.status === "COMPLETED") {
+          completedAnalysis = statusData;
+          break;
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+      }
+
+      if (!completedAnalysis) {
+        alert("AI analysis is still processing.");
+        return;
+      }
+
+      console.log("fal.ai completed result:", completedAnalysis.result);
+
+      const analysisText = completedAnalysis.result?.output;
+
+      if (!analysisText) {
+        alert("AI analysis completed, but no result text was returned.");
+        return;
+      }
+
+      const { error: saveAnalysisError } = await supabase
+        .from("analyses")
+        .update({
+          status: "completed",
+          result: analysisText,
+          model_provider: "fal.ai",
+          model_name: "fal-ai/video-understanding",
+          completed_at: new Date().toISOString(),
+        })
+        .eq("id", analysisRow.id);
+
+      if (saveAnalysisError) {
+        console.error("Failed to save analysis result:", saveAnalysisError);
+        alert("AI analysis completed, but saving the result failed.");
+        return;
+      }
+
+      console.log("Saved analysis result:", analysisText);
+    }
+
     console.log("Created upload row:", uploadRow);
     console.log("Created analysis row:", analysisRow);
+    console.log("Signed media URL:", signedUrlData.signedUrl);
+
     alert("Upload and analysis record saved.");
   }
 
