@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import UploadForm from "@/app/upload/upload-form";
 import ChatPanel from "./chat-panel";
 
 export default async function CoachingSessionPage({ params }) {
@@ -29,7 +28,18 @@ export default async function CoachingSessionPage({ params }) {
 
   const { data: chatHistory, error: chatHistoryError } = await supabase
     .from("chat_history")
-    .select("message, sender")
+    .select(
+      `
+    message,
+    sender,
+    upload_id,
+    uploads (
+      media_path,
+      media_type,
+      attempt_number
+    )
+  `,
+    )
     .eq("user_id", user.id)
     .eq("coaching_session_id", sessionId)
     .order("created_at", { ascending: true });
@@ -38,17 +48,36 @@ export default async function CoachingSessionPage({ params }) {
     console.error("Failed to load chat history:", chatHistoryError);
   }
 
-  const initialMessages = (chatHistory || []).map((item) => ({
-    message: item.message,
-    sender: item.sender === "User" ? "user" : "ChatGPT",
-  }));
+  const initialMessages = await Promise.all(
+    (chatHistory || []).map(async (item) => {
+      let attachment = null;
+
+      if (item.uploads?.media_path) {
+        const { data: signedUrlData } = await supabase.storage
+          .from("climbing-media")
+          .createSignedUrl(item.uploads.media_path, 3600);
+
+        attachment = {
+          ...item.uploads,
+          signedUrl: signedUrlData?.signedUrl ?? null,
+        };
+      }
+
+      return {
+        message: item.message,
+        sender: item.sender === "User" ? "user" : "ChatGPT",
+        uploadId: item.upload_id,
+        attachment,
+      };
+    }),
+  );
 
   return (
     <>
       <h1>Climbing Session</h1>
       <p>Session: {sessionId}</p>
 
-      <UploadForm initialCoachingSessionId={sessionId} />
+      <a href="/upload">Start a different problem</a>
 
       <ChatPanel
         coachingSessionId={sessionId}
