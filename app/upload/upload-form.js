@@ -72,6 +72,7 @@ export default function UploadForm({ initialCoachingSessionId = null }) {
         }
 
         setAnalysisResult(latestAnalysis?.result ?? "");
+        setAwaitingAttemptChoice(Boolean(latestAnalysis?.result));
       }
     }
 
@@ -307,6 +308,30 @@ export default function UploadForm({ initialCoachingSessionId = null }) {
         return;
       }
 
+      const { error: saveChatError } = await supabase
+        .from("chat_history")
+        .insert({
+          user_id: user.id,
+          coaching_session_id: activeCoachingSessionId,
+          message: analysisText,
+          sender: "ChatGPT",
+        });
+
+      if (saveChatError) {
+        console.error(
+          "Failed to save coaching feedback to chat:",
+          saveChatError,
+        );
+      } else {
+        window.dispatchEvent(
+          new CustomEvent("climbing-coach-message", {
+            detail: {
+              message: analysisText,
+            },
+          }),
+        );
+      }
+
       setAnalysisResult(analysisText);
       setSessionFileHashes((currentHashes) => [
         ...currentHashes,
@@ -367,8 +392,12 @@ export default function UploadForm({ initialCoachingSessionId = null }) {
 
       {analysisResult && (
         <div>
-          <h2>Climbing Feedback</h2>
-          <p>{analysisResult}</p>
+          {!initialCoachingSessionId && (
+            <>
+              <h2>Climbing Feedback</h2>
+              <p>{analysisResult}</p>
+            </>
+          )}
 
           {awaitingAttemptChoice && (
             <div>
