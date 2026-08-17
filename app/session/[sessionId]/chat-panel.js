@@ -8,10 +8,12 @@ export default function ChatPanel({
   coachingSessionId,
   userId,
   initialMessages = [],
+  initialProgressState = null,
 }) {
   const [typing, setTyping] = useState(false);
   const [messages, setMessages] = useState(initialMessages);
   const [inputValue, setInputValue] = useState("");
+  const [progressState, setProgressState] = useState(initialProgressState);
 
   const endRef = useRef(null);
 
@@ -55,14 +57,6 @@ export default function ChatPanel({
       ]);
     }
 
-    window.addEventListener("climbing-coach-message", handleCoachMessage);
-
-    return () => {
-      window.removeEventListener("climbing-coach-message", handleCoachMessage);
-    };
-  }, []);
-
-  useEffect(() => {
     function handleUserAttachment(event) {
       const attachmentMessage = event.detail;
 
@@ -81,12 +75,29 @@ export default function ChatPanel({
       ]);
     }
 
+    function handleProgressUpdate(event) {
+      const updatedState = event.detail;
+
+      if (!updatedState) {
+        return;
+      }
+
+      setProgressState(updatedState);
+    }
+
+    window.addEventListener("climbing-coach-message", handleCoachMessage);
     window.addEventListener("climbing-user-attachment", handleUserAttachment);
+    window.addEventListener("climbing-progress-update", handleProgressUpdate);
 
     return () => {
+      window.removeEventListener("climbing-coach-message", handleCoachMessage);
       window.removeEventListener(
         "climbing-user-attachment",
         handleUserAttachment,
+      );
+      window.removeEventListener(
+        "climbing-progress-update",
+        handleProgressUpdate,
       );
     };
   }, []);
@@ -143,6 +154,32 @@ export default function ChatPanel({
 
   return (
     <div>
+      {progressState && (
+        <div>
+          <h2>Current Focus</h2>
+
+          <p>
+            <strong>Active limiter:</strong>{" "}
+            {progressState.active_limiter || "Not identified yet"}
+          </p>
+
+          <p>
+            <strong>Progress:</strong>{" "}
+            {progressState.progress_note || "No progress recorded yet"}
+          </p>
+
+          <p>
+            <strong>What we&apos;re testing:</strong>{" "}
+            {progressState.current_experiment || "No active experiment yet"}
+          </p>
+
+          <p>
+            <strong>Next attempt should test:</strong>{" "}
+            {progressState.next_attempt_test || "No test defined yet"}
+          </p>
+        </div>
+      )}
+
       <h2>Ask your coach</h2>
 
       <div>
