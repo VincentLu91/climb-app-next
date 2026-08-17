@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import UploadForm from "@/app/upload/upload-form";
 
 export default function ChatPanel({
   coachingSessionId,
@@ -58,6 +59,35 @@ export default function ChatPanel({
 
     return () => {
       window.removeEventListener("climbing-coach-message", handleCoachMessage);
+    };
+  }, []);
+
+  useEffect(() => {
+    function handleUserAttachment(event) {
+      const attachmentMessage = event.detail;
+
+      if (!attachmentMessage?.attachment?.signedUrl) {
+        return;
+      }
+
+      setMessages((currentMessages) => [
+        ...currentMessages,
+        {
+          message: attachmentMessage.message,
+          sender: "user",
+          uploadId: attachmentMessage.uploadId,
+          attachment: attachmentMessage.attachment,
+        },
+      ]);
+    }
+
+    window.addEventListener("climbing-user-attachment", handleUserAttachment);
+
+    return () => {
+      window.removeEventListener(
+        "climbing-user-attachment",
+        handleUserAttachment,
+      );
     };
   }, []);
 
@@ -118,8 +148,23 @@ export default function ChatPanel({
       <div>
         {messages.map((item, index) => (
           <div key={index}>
-            <strong>{item.sender === "user" ? "You" : "Coach"}:</strong>{" "}
-            {item.message}
+            <strong>{item.sender === "user" ? "You" : "Coach"}:</strong>
+
+            {item.attachment?.signedUrl && (
+              <div>
+                {item.attachment.media_type === "video" ? (
+                  <video src={item.attachment.signedUrl} controls width="320" />
+                ) : (
+                  <img
+                    src={item.attachment.signedUrl}
+                    alt={item.message}
+                    width="320"
+                  />
+                )}
+              </div>
+            )}
+
+            <span>{item.message}</span>
           </div>
         ))}
 
@@ -128,21 +173,32 @@ export default function ChatPanel({
         <div ref={endRef} />
       </div>
 
-      <input
-        type="text"
-        value={inputValue}
-        onChange={(event) => setInputValue(event.target.value)}
-        onKeyDown={(event) => {
-          if (event.key === "Enter") {
-            send();
-          }
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
         }}
-        placeholder="Ask about this climbing session..."
-      />
+      >
+        <UploadForm initialCoachingSessionId={coachingSessionId} composerMode />
 
-      <button type="button" onClick={send}>
-        Send
-      </button>
+        <input
+          type="text"
+          value={inputValue}
+          onChange={(event) => setInputValue(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              send();
+            }
+          }}
+          placeholder="Ask your coach..."
+          style={{ flex: 1 }}
+        />
+
+        <button type="button" onClick={send}>
+          Send
+        </button>
+      </div>
     </div>
   );
 }

@@ -13,7 +13,10 @@ async function getFileHash(file) {
     .join("");
 }
 
-export default function UploadForm({ initialCoachingSessionId = null }) {
+export default function UploadForm({
+  initialCoachingSessionId = null,
+  composerMode = false,
+}) {
   const supabase = createClient();
   const router = useRouter();
 
@@ -26,6 +29,16 @@ export default function UploadForm({ initialCoachingSessionId = null }) {
   const [attemptNumber, setAttemptNumber] = useState(1);
   const [awaitingAttemptChoice, setAwaitingAttemptChoice] = useState(false);
   const [sessionFileHashes, setSessionFileHashes] = useState([]);
+
+  function handleFileChange(event) {
+    const selectedFile = event.target.files?.[0] ?? null;
+
+    if (composerMode && awaitingAttemptChoice && selectedFile) {
+      setAwaitingAttemptChoice(false);
+    }
+
+    setFile(selectedFile);
+  }
 
   useEffect(() => {
     async function loadCoachingSessionState() {
@@ -203,6 +216,23 @@ export default function UploadForm({ initialCoachingSessionId = null }) {
       return;
     }
 
+    const { error: saveUploadChatError } = await supabase
+      .from("chat_history")
+      .insert({
+        user_id: user.id,
+        coaching_session_id: activeCoachingSessionId,
+        upload_id: uploadRow.id,
+        message: `Attempt ${attemptNumber}`,
+        sender: "User",
+      });
+
+    if (saveUploadChatError) {
+      console.error(
+        "Failed to save uploaded attempt to chat:",
+        saveUploadChatError,
+      );
+    }
+
     const { data: analysisRow, error: analysisError } = await supabase
       .from("analyses")
       .insert({
@@ -227,6 +257,25 @@ export default function UploadForm({ initialCoachingSessionId = null }) {
       console.error("Signed URL error:", signedUrlError);
       alert("Upload saved, but media URL creation failed.");
       return;
+    }
+
+    if (composerMode && !saveUploadChatError) {
+      window.dispatchEvent(
+        new CustomEvent("climbing-user-attachment", {
+          detail: {
+            message: `Attempt ${attemptNumber}`,
+            uploadId: uploadRow.id,
+            attachment: {
+              media_path: filePath,
+              media_type: mediaType,
+              attempt_number: attemptNumber,
+              signedUrl: signedUrlData.signedUrl,
+            },
+          },
+        }),
+      );
+
+      setFile(null);
     }
 
     if (mediaType === "video") {
@@ -337,6 +386,11 @@ export default function UploadForm({ initialCoachingSessionId = null }) {
         ...currentHashes,
         currentFileHash,
       ]);
+
+      if (composerMode) {
+        setAttemptNumber((currentAttempt) => currentAttempt + 1);
+      }
+
       setAwaitingAttemptChoice(true);
 
       console.log("Saved analysis result:", analysisText);
@@ -375,18 +429,34 @@ export default function UploadForm({ initialCoachingSessionId = null }) {
 
   return (
     <form onSubmit={handleSubmit}>
-      {!awaitingAttemptChoice && (
+      {(!awaitingAttemptChoice || composerMode) && (
         <>
           <input
+            id={`climbing-media-${coachingSessionId ?? "new"}-${attemptNumber}`}
             key={`${coachingSessionId}-${attemptNumber}`}
             type="file"
             accept="image/*,video/*"
             onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+            style={composerMode ? { display: "none" } : undefined}
           />
 
-          {file && <p>Selected: {file.name}</p>}
+          {composerMode ? (
+            <label
+              htmlFor={`climbing-media-${
+                coachingSessionId ?? "new"
+              }-${attemptNumber}`}
+            >
+              {file ? file.name : "Attach photo/video"}
+            </label>
+          ) : (
+            file && <p>Selected: {file.name}</p>
+          )}
 
-          <button type="submit">Upload</button>
+          {(!composerMode || file) && (
+            <button type="submit">
+              {composerMode ? "Send attempt" : "Upload"}
+            </button>
+          )}
         </>
       )}
 
@@ -401,13 +471,17 @@ export default function UploadForm({ initialCoachingSessionId = null }) {
 
           {awaitingAttemptChoice && (
             <div>
-              <button type="button" onClick={handleNextAttempt}>
-                Next attempt on this problem
-              </button>
+              {!composerMode && (
+                <button type="button" onClick={handleNextAttempt}>
+                  Next attempt on this problem
+                </button>
+              )}
 
-              <button type="button" onClick={handleNewProblem}>
-                Start a different problem
-              </button>
+              {!composerMode && (
+                <button type="button" onClick={handleNewProblem}>
+                  Start a different problem
+                </button>
+              )}
             </div>
           )}
         </div>
