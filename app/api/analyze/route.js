@@ -1,3 +1,5 @@
+import { createClient } from "@/lib/supabase/server";
+
 export async function POST(request) {
   try {
     const {
@@ -7,9 +9,39 @@ export async function POST(request) {
       previousSessionFocus,
     } = await request.json();
 
+    const supabase = await createClient();
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    let progressState = null;
+
+    if (user) {
+      const { data, error } = await supabase
+        .from("climber_progress_state")
+        .select("active_limiter, current_experiment, next_attempt_test")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (error) {
+        console.error("Failed to load climber progress state:", error);
+      } else {
+        progressState = data;
+      }
+    }
+
     if (!videoUrl) {
       return Response.json({ error: "Missing videoUrl." }, { status: 400 });
     }
+
+    const progressContext = progressState
+      ? [
+          `Current active limiter: ${progressState.active_limiter || "None"}`,
+          `Current experiment: ${progressState.current_experiment || "None"}`,
+          `Next attempt test: ${progressState.next_attempt_test || "None"}`,
+        ].join("\n")
+      : "No structured progression state available.";
 
     const analysisPrompt =
       attemptNumber > 1 && previousAnalysisText
@@ -20,11 +52,21 @@ This is Attempt ${attemptNumber}.
 Previous coaching feedback:
 ${previousAnalysisText}
 
-Analyze the CURRENT attempt. Focus on whether the climber addressed the previous issue. Do not claim improvement unless it is visible in the current video.
+CURRENT STRUCTURED COACHING STATE:
+${progressContext}
+
+Analyze the CURRENT attempt.
+
+First, evaluate the current experiment and next-attempt test using only what is visible in the video. Determine whether the climber actually tried the experiment and whether it appeared to help.
+
+Do not claim improvement unless it is visible.
+
+If the tracked experiment is no longer the most important issue, say so and identify the new limiter rather than forcing the old focus to remain active.
 
 Respond in exactly this format:
 
-What changed: <one concise sentence about whether the previous issue improved, stayed the same, or worsened>
+Experiment check: <one concise sentence describing whether the tracked experiment was attempted and what happened>
+What changed: <one concise sentence about meaningful change from the previous attempt>
 Main issue now: <one concise sentence identifying the most important current limiter>
 Next attempt: <one concise actionable sentence>`
         : attemptNumber === 1 && previousSessionFocus

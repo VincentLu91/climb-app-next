@@ -381,6 +381,24 @@ export default function UploadForm({
         return;
       }
 
+      const progressResponse = await fetch("/api/update-progress", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          analysisText,
+        }),
+      });
+
+      const progressData = await progressResponse.json();
+
+      if (!progressResponse.ok) {
+        console.error("Progress update test failed:", progressData);
+      } else {
+        console.log("Progress state test:", progressData.updatedState);
+      }
+
       const { error: saveChatError } = await supabase
         .from("chat_history")
         .insert({
