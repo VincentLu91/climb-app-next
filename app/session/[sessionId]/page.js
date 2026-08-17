@@ -26,6 +26,18 @@ export default async function CoachingSessionPage({ params }) {
     redirect("/upload");
   }
 
+  const { data: progressState, error: progressStateError } = await supabase
+    .from("climber_progress_state")
+    .select(
+      "active_limiter, progress_note, current_experiment, next_attempt_test",
+    )
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (progressStateError) {
+    console.error("Failed to load climber progress:", progressStateError);
+  }
+
   const { data: chatHistory, error: chatHistoryError } = await supabase
     .from("chat_history")
     .select(
@@ -83,6 +95,7 @@ export default async function CoachingSessionPage({ params }) {
         coachingSessionId={sessionId}
         userId={user.id}
         initialMessages={initialMessages}
+        initialProgressState={progressState}
       />
     </>
   );
