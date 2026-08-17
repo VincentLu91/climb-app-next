@@ -37,7 +37,7 @@ export default function UploadForm({ initialCoachingSessionId = null }) {
 
       const { data, error } = await supabase
         .from("uploads")
-        .select("attempt_number, file_hash")
+        .select("id, attempt_number, file_hash")
         .eq("coaching_session_id", initialCoachingSessionId)
         .order("attempt_number", { ascending: true });
 
@@ -46,12 +46,33 @@ export default function UploadForm({ initialCoachingSessionId = null }) {
         return;
       }
 
-      const lastAttempt = data?.at(-1)?.attempt_number ?? 0;
+      const lastUpload = data?.at(-1);
+      const lastAttempt = lastUpload?.attempt_number ?? 0;
 
       setAttemptNumber(lastAttempt + 1);
       setSessionFileHashes(
         data?.map((upload) => upload.file_hash).filter(Boolean) ?? [],
       );
+
+      if (lastUpload) {
+        const { data: latestAnalysis, error: latestAnalysisError } =
+          await supabase
+            .from("analyses")
+            .select("result")
+            .eq("upload_id", lastUpload.id)
+            .eq("status", "completed")
+            .maybeSingle();
+
+        if (latestAnalysisError) {
+          console.error(
+            "Failed to load latest coaching feedback:",
+            latestAnalysisError,
+          );
+          return;
+        }
+
+        setAnalysisResult(latestAnalysis?.result ?? "");
+      }
     }
 
     loadCoachingSessionState();
@@ -311,7 +332,6 @@ export default function UploadForm({ initialCoachingSessionId = null }) {
 
     setAttemptNumber((currentAttempt) => currentAttempt + 1);
     setFile(null);
-    setAnalysisResult("");
     setAwaitingAttemptChoice(false);
   }
 
