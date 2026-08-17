@@ -26,21 +26,16 @@ export default function StartSessionButton() {
       return;
     }
 
-    const { data: previousSession, error: previousSessionError } =
-      await supabase
-        .from("coaching_sessions")
-        .select("next_session_focus")
-        .eq("user_id", user.id)
-        .not("ended_at", "is", null)
-        .not("next_session_focus", "is", null)
-        .order("ended_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+    const { data: progressState, error: progressStateError } = await supabase
+      .from("climber_progress_state")
+      .select("active_limiter, current_experiment, next_attempt_test")
+      .eq("user_id", user.id)
+      .maybeSingle();
 
-    if (previousSessionError) {
+    if (progressStateError) {
       console.error(
-        "Failed to load previous session learning:",
-        previousSessionError,
+        "Failed to load climber progress state:",
+        progressStateError,
       );
     }
 
@@ -58,10 +53,8 @@ export default function StartSessionButton() {
       return;
     }
 
-    const kickoffMessage = previousSession?.next_session_focus
-      ? `Last session, your main focus for next time was: ${previousSession.next_session_focus}
-
-What are you working on today? You can tell me, send a photo of the wall or problem, or send your first attempt.`
+    const kickoffMessage = progressState?.active_limiter
+      ? "I've carried your current coaching focus forward. What are you working on today? You can tell me, send a photo of the wall or problem, or send your first attempt."
       : "What are you working on today? You can tell me, send a photo of the wall or problem, or send your first attempt.";
 
     const { error: messageError } = await supabase.from("chat_history").insert({

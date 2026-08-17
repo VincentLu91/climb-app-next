@@ -394,9 +394,20 @@ export default function UploadForm({
       const progressData = await progressResponse.json();
 
       if (!progressResponse.ok) {
-        console.error("Progress update test failed:", progressData);
+        console.error("Progress update failed:", progressData);
       } else {
-        console.log("Progress state test:", progressData.updatedState);
+        console.log("Progress state:", progressData.updatedState);
+
+        window.dispatchEvent(
+          new CustomEvent("climbing-progress-update", {
+            detail: {
+              active_limiter: progressData.updatedState.activeLimiter,
+              progress_note: progressData.updatedState.progressNote,
+              current_experiment: progressData.updatedState.currentExperiment,
+              next_attempt_test: progressData.updatedState.nextAttemptTest,
+            },
+          }),
+        );
       }
 
       const { error: saveChatError } = await supabase
