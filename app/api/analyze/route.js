@@ -1,7 +1,11 @@
 export async function POST(request) {
   try {
-    const { videoUrl, attemptNumber, previousAnalysisText } =
-      await request.json();
+    const {
+      videoUrl,
+      attemptNumber,
+      previousAnalysisText,
+      previousSessionFocus,
+    } = await request.json();
 
     if (!videoUrl) {
       return Response.json({ error: "Missing videoUrl." }, { status: 400 });
@@ -21,6 +25,21 @@ Analyze the CURRENT attempt. Focus on whether the climber addressed the previous
 Respond in exactly this format:
 
 What changed: <one concise sentence about whether the previous issue improved, stayed the same, or worsened>
+Main issue now: <one concise sentence identifying the most important current limiter>
+Next attempt: <one concise actionable sentence>`
+        : attemptNumber === 1 && previousSessionFocus
+        ? `You are an AI climbing coach analyzing the climber's first attempt of a new session.
+
+A previous session ended with this suggested focus:
+${previousSessionFocus}
+
+Treat that previous focus only as something to CHECK in the current video. Do not assume the old issue is still present.
+
+Analyze the CURRENT attempt and identify the most important limiter visible now. If the previous focus is visibly relevant, mention whether it appears improved, unchanged, or still limiting the climber. If it is not supported by the current video, do not force it into the analysis.
+
+Respond in exactly this format:
+
+Previous focus check: <one concise sentence about whether the previous focus is visibly relevant in this attempt>
 Main issue now: <one concise sentence identifying the most important current limiter>
 Next attempt: <one concise actionable sentence>`
         : `You are an AI climbing coach. Analyze this climbing attempt. Do not describe the entire video. Identify the single most important technical issue preventing progress and one specific action for the climber's very next attempt.

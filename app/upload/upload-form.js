@@ -140,6 +140,29 @@ export default function UploadForm({
 
     let previousUploadRow = null;
     let previousAnalysisText = null;
+    let previousSessionFocus = null;
+
+    if (attemptNumber === 1) {
+      const { data: previousSession, error: previousSessionError } =
+        await supabase
+          .from("coaching_sessions")
+          .select("next_session_focus")
+          .eq("user_id", user.id)
+          .not("ended_at", "is", null)
+          .not("next_session_focus", "is", null)
+          .order("ended_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+      if (previousSessionError) {
+        console.error(
+          "Failed to load previous session focus:",
+          previousSessionError,
+        );
+      }
+
+      previousSessionFocus = previousSession?.next_session_focus ?? null;
+    }
 
     if (attemptNumber > 1) {
       const { data, error } = await supabase
@@ -288,6 +311,7 @@ export default function UploadForm({
           videoUrl: signedUrlData.signedUrl,
           attemptNumber,
           previousAnalysisText,
+          previousSessionFocus,
         }),
       });
 
