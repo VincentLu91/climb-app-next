@@ -107,6 +107,8 @@ If the available evidence is limited, say so and give advice only from what is a
 
 Keep responses concise and actionable.
 
+Use plain text only. Do not use Markdown formatting such as asterisks, headings, or bullet syntax.
+
 CURRENT SESSION COACHING HISTORY:
 ${coachingContext || "No analyzed attempts yet."}`,
     },
