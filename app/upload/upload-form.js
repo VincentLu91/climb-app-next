@@ -424,14 +424,16 @@ const UploadForm = forwardRef(function UploadForm(
         );
       }
 
-      const { error: saveChatError } = await supabase
+      const { data: savedCoachMessage, error: saveChatError } = await supabase
         .from("chat_history")
         .insert({
           user_id: user.id,
           coaching_session_id: activeCoachingSessionId,
           message: analysisText,
           sender: "ChatGPT",
-        });
+        })
+        .select("id")
+        .single();
 
       if (saveChatError) {
         console.error(
@@ -442,7 +444,9 @@ const UploadForm = forwardRef(function UploadForm(
         window.dispatchEvent(
           new CustomEvent("climbing-coach-message", {
             detail: {
+              id: savedCoachMessage.id,
               message: analysisText,
+              coachingHelpful: null,
             },
           }),
         );
@@ -523,14 +527,17 @@ Give a concise response that helps the climber decide what to work on or what to
         return;
       }
 
-      const { error: saveImageChatError } = await supabase
-        .from("chat_history")
-        .insert({
-          user_id: user.id,
-          coaching_session_id: activeCoachingSessionId,
-          message: analysisText,
-          sender: "ChatGPT",
-        });
+      const { data: savedImageCoachMessage, error: saveImageChatError } =
+        await supabase
+          .from("chat_history")
+          .insert({
+            user_id: user.id,
+            coaching_session_id: activeCoachingSessionId,
+            message: analysisText,
+            sender: "ChatGPT",
+          })
+          .select("id")
+          .single();
 
       if (saveImageChatError) {
         console.error(
@@ -541,7 +548,9 @@ Give a concise response that helps the climber decide what to work on or what to
         window.dispatchEvent(
           new CustomEvent("climbing-coach-message", {
             detail: {
+              id: savedImageCoachMessage.id,
               message: analysisText,
+              coachingHelpful: null,
             },
           }),
         );

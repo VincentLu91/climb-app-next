@@ -42,9 +42,11 @@ export default async function CoachingSessionPage({ params }) {
     .from("chat_history")
     .select(
       `
+    id,
     message,
     sender,
     upload_id,
+    coaching_helpful,
     uploads (
       media_path,
       media_type,
@@ -76,9 +78,11 @@ export default async function CoachingSessionPage({ params }) {
       }
 
       return {
+        id: item.id,
         message: item.message,
         sender: item.sender === "User" ? "user" : "ChatGPT",
         uploadId: item.upload_id,
+        coachingHelpful: item.coaching_helpful,
         attachment,
       };
     }),
