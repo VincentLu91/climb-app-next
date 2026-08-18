@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import posthog from "posthog-js";
+
 import { createClient } from "@/lib/supabase/client";
 
 const experienceOptions = ["Beginner", "Intermediate", "Advanced"];
@@ -26,6 +28,26 @@ const weaknessOptions = [
 ];
 
 export default function ProfileForm({ userId, profile }) {
+  const coachingProfileViewedTracked = useRef(false);
+
+  useEffect(() => {
+    if (coachingProfileViewedTracked.current) {
+      return;
+    }
+
+    coachingProfileViewedTracked.current = true;
+
+    posthog.capture(
+      "coaching_profile_viewed",
+      {
+        onboarding_version: 1,
+      },
+      {
+        send_instantly: true,
+      },
+    );
+  }, []);
+
   const [displayName, setDisplayName] = useState(profile?.display_name ?? "");
   const [heightCm, setHeightCm] = useState(profile?.height_cm ?? "");
   const [experienceLevel, setExperienceLevel] = useState(
