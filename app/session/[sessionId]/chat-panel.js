@@ -16,6 +16,7 @@ export default function ChatPanel({
   const [progressState, setProgressState] = useState(initialProgressState);
 
   const endRef = useRef(null);
+  const uploadFormRef = useRef(null);
 
   async function saveMessage(message, sender) {
     if (!userId || !coachingSessionId) {
@@ -136,9 +137,18 @@ export default function ChatPanel({
   }
 
   async function send() {
+    if (typing) {
+      return;
+    }
+
+    if (uploadFormRef.current?.hasFile) {
+      await uploadFormRef.current.submitAttachment();
+      return;
+    }
+
     const text = inputValue.trim();
 
-    if (!text || typing) {
+    if (!text) {
       return;
     }
 
@@ -217,7 +227,13 @@ export default function ChatPanel({
           gap: "8px",
         }}
       >
-        <UploadForm initialCoachingSessionId={coachingSessionId} composerMode />
+        <UploadForm
+          ref={uploadFormRef}
+          initialCoachingSessionId={coachingSessionId}
+          composerMode
+          messageText={inputValue}
+          onAttachmentSent={() => setInputValue("")}
+        />
 
         <input
           type="text"

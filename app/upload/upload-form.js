@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
@@ -13,10 +13,15 @@ async function getFileHash(file) {
     .join("");
 }
 
-export default function UploadForm({
-  initialCoachingSessionId = null,
-  composerMode = false,
-}) {
+const UploadForm = forwardRef(function UploadForm(
+  {
+    initialCoachingSessionId = null,
+    composerMode = false,
+    messageText = "",
+    onAttachmentSent,
+  },
+  ref,
+) {
   const supabase = createClient();
   const router = useRouter();
 
@@ -227,7 +232,7 @@ export default function UploadForm({
         media_path: filePath,
         media_type: mediaType,
         coaching_session_id: activeCoachingSessionId,
-        attempt_number: attemptNumber,
+        attempt_number: mediaType === "video" ? attemptNumber : null,
         file_hash: currentFileHash,
       })
       .select()
@@ -245,7 +250,11 @@ export default function UploadForm({
         user_id: user.id,
         coaching_session_id: activeCoachingSessionId,
         upload_id: uploadRow.id,
-        message: `Attempt ${attemptNumber}`,
+        message:
+          messageText.trim() ||
+          (mediaType === "video"
+            ? `Attempt ${attemptNumber}`
+            : "Wall/problem photo"),
         sender: "User",
       });
 
@@ -286,12 +295,16 @@ export default function UploadForm({
       window.dispatchEvent(
         new CustomEvent("climbing-user-attachment", {
           detail: {
-            message: `Attempt ${attemptNumber}`,
+            message:
+              messageText.trim() ||
+              (mediaType === "video"
+                ? `Attempt ${attemptNumber}`
+                : "Wall/problem photo"),
             uploadId: uploadRow.id,
             attachment: {
               media_path: filePath,
               media_type: mediaType,
-              attempt_number: attemptNumber,
+              attempt_number: mediaType === "video" ? attemptNumber : null,
               signedUrl: signedUrlData.signedUrl,
             },
           },
@@ -299,6 +312,7 @@ export default function UploadForm({
       );
 
       setFile(null);
+      onAttachmentSent?.();
     }
 
     if (mediaType === "video") {
@@ -449,6 +463,91 @@ export default function UploadForm({
       console.log("Saved analysis result:", analysisText);
     }
 
+    if (mediaType === "image") {
+      const imageResponse = await fetch("/api/analyze-image", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          imageUrl: signedUrlData.signedUrl,
+          prompt: `This image was sent by a climber during an active coaching session.
+
+USER CONTEXT:
+${
+  messageText || "The climber did not specify which route or problem they mean."
+}
+
+Treat the image as wall or problem context, not as a climbing attempt.
+
+If the climber specifies a route color, treat the visible holds of that color as the intended climbing problem.
+
+Do not confuse multiple holds of the same color with multiple routes.
+
+Only ask for clarification if the image clearly contains more than one separate problem using the same specified color, or if the requested color cannot be identified reliably in the image.
+
+Describe only what is visibly useful for coaching. Do not invent a route sequence, grade, hold type, or movement that cannot be supported by the image.
+
+Give a concise response that helps the climber decide what to work on or what to try next.`,
+        }),
+      });
+
+      const imageData = await imageResponse.json();
+
+      if (!imageResponse.ok) {
+        console.error("Image analysis error:", imageData);
+        alert("Photo uploaded, but image analysis failed.");
+        return;
+      }
+
+      const analysisText = imageData.output;
+
+      if (!analysisText) {
+        alert("Photo analysis completed, but no result text was returned.");
+        return;
+      }
+
+      const { error: saveImageAnalysisError } = await supabase
+        .from("analyses")
+        .update({
+          status: "completed",
+          result: analysisText,
+          model_provider: "fal.ai",
+          model_name: "openrouter/router/vision",
+          completed_at: new Date().toISOString(),
+        })
+        .eq("id", analysisRow.id);
+
+      if (saveImageAnalysisError) {
+        console.error("Failed to save image analysis:", saveImageAnalysisError);
+        return;
+      }
+
+      const { error: saveImageChatError } = await supabase
+        .from("chat_history")
+        .insert({
+          user_id: user.id,
+          coaching_session_id: activeCoachingSessionId,
+          message: analysisText,
+          sender: "ChatGPT",
+        });
+
+      if (saveImageChatError) {
+        console.error(
+          "Failed to save image coaching response:",
+          saveImageChatError,
+        );
+      } else {
+        window.dispatchEvent(
+          new CustomEvent("climbing-coach-message", {
+            detail: {
+              message: analysisText,
+            },
+          }),
+        );
+      }
+    }
+
     console.log("Created upload row:", uploadRow);
     console.log("Created analysis row:", analysisRow);
     console.log("Signed media URL:", signedUrlData.signedUrl);
@@ -480,6 +579,20 @@ export default function UploadForm({
     }
   }
 
+  useImperativeHandle(ref, () => ({
+    hasFile: Boolean(file),
+
+    submitAttachment: async () => {
+      if (!file) {
+        return;
+      }
+
+      await handleSubmit({
+        preventDefault() {},
+      });
+    },
+  }));
+
   return (
     <form onSubmit={handleSubmit}>
       {(!awaitingAttemptChoice || composerMode) && (
@@ -505,11 +618,7 @@ export default function UploadForm({
             file && <p>Selected: {file.name}</p>
           )}
 
-          {(!composerMode || file) && (
-            <button type="submit">
-              {composerMode ? "Send attempt" : "Upload"}
-            </button>
-          )}
+          {!composerMode && <button type="submit">Upload</button>}
         </>
       )}
 
@@ -541,4 +650,6 @@ export default function UploadForm({
       )}
     </form>
   );
-}
+});
+
+export default UploadForm;
