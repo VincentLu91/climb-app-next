@@ -16,6 +16,7 @@ export async function POST(request) {
     } = await supabase.auth.getUser();
 
     let progressState = null;
+    let climberProfile = null;
 
     if (user) {
       const { data, error } = await supabase
@@ -28,6 +29,18 @@ export async function POST(request) {
         console.error("Failed to load climber progress state:", error);
       } else {
         progressState = data;
+      }
+
+      const { data: profileData, error: profileError } = await supabase
+        .from("profiles")
+        .select("height_cm, experience_level, typical_grade, goals, weaknesses")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (profileError) {
+        console.error("Failed to load climber profile:", profileError);
+      } else {
+        climberProfile = profileData;
       }
     }
 
@@ -42,6 +55,18 @@ export async function POST(request) {
           `Next attempt test: ${progressState.next_attempt_test || "None"}`,
         ].join("\n")
       : "No structured progression state available.";
+
+    const climberProfileContext = climberProfile
+      ? [
+          `Height: ${climberProfile.height_cm || "Unknown"} cm`,
+          `Experience level: ${climberProfile.experience_level || "Unknown"}`,
+          `Typical grade: ${climberProfile.typical_grade || "Unknown"}`,
+          `Goals: ${climberProfile.goals?.join(", ") || "None stated"}`,
+          `Known weaknesses: ${
+            climberProfile.weaknesses?.join(", ") || "None stated"
+          }`,
+        ].join("\n")
+      : "No onboarding profile available.";
 
     const analysisPrompt =
       attemptNumber > 1 && previousAnalysisText
@@ -70,7 +95,7 @@ What changed: <one concise sentence about meaningful change from the previous at
 Main issue now: <one concise sentence identifying the most important current limiter>
 Next attempt: <one concise actionable sentence>`
         : attemptNumber === 1 && previousSessionFocus
-        ? `You are an AI climbing coach analyzing the climber's first attempt of a new session.
+          ? `You are an AI climbing coach analyzing the climber's first attempt of a new session.
 
 A previous session ended with this suggested focus:
 ${previousSessionFocus}
@@ -84,7 +109,7 @@ Respond in exactly this format:
 Previous focus check: <one concise sentence about whether the previous focus is visibly relevant in this attempt>
 Main issue now: <one concise sentence identifying the most important current limiter>
 Next attempt: <one concise actionable sentence>`
-        : `You are an AI climbing coach. Analyze this climbing attempt. Do not describe the entire video. Identify the single most important technical issue preventing progress and one specific action for the climber's very next attempt.
+          : `You are an AI climbing coach. Analyze this climbing attempt. Do not describe the entire video. Identify the single most important technical issue preventing progress and one specific action for the climber's very next attempt.
 
 Respond in exactly this format:
 
@@ -101,7 +126,14 @@ Next attempt: <one concise actionable sentence>`;
         },
         body: JSON.stringify({
           video_url: videoUrl,
-          prompt: analysisPrompt,
+          prompt: `CLIMBER PROFILE:
+${climberProfileContext}
+
+Use this profile to personalize your coaching to the climber's level, goals, and body context.
+
+Treat self-reported weaknesses as context to CHECK against the video, not as facts. Do not claim a weakness is present unless it is visibly supported by the current attempt.
+
+${analysisPrompt}`,
           detailed_analysis: false,
         }),
       },
