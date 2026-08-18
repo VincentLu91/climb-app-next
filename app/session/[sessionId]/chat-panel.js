@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+
 import { createClient } from "@/lib/supabase/client";
 import UploadForm from "@/app/upload/upload-form";
 
@@ -10,10 +12,13 @@ export default function ChatPanel({
   initialMessages = [],
   initialProgressState = null,
 }) {
+  const router = useRouter();
+
   const [typing, setTyping] = useState(false);
   const [messages, setMessages] = useState(initialMessages);
   const [inputValue, setInputValue] = useState("");
   const [progressState, setProgressState] = useState(initialProgressState);
+  const [finishing, setFinishing] = useState(false);
 
   const endRef = useRef(null);
   const uploadFormRef = useRef(null);
@@ -136,6 +141,42 @@ export default function ChatPanel({
     }
   }
 
+  async function finishProblem() {
+    if (finishing) {
+      return;
+    }
+
+    setFinishing(true);
+
+    try {
+      const response = await fetch("/api/finish-session", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          sessionId: coachingSessionId,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error("Finish session error:", data);
+        alert("Failed to finish this problem.");
+        return;
+      }
+
+      router.push("/upload");
+      router.refresh();
+    } catch (error) {
+      console.error("Finish session error:", error);
+      alert("Failed to finish this problem.");
+    } finally {
+      setFinishing(false);
+    }
+  }
+
   async function send() {
     if (typing) {
       return;
@@ -252,6 +293,10 @@ export default function ChatPanel({
           Send
         </button>
       </div>
+
+      <button type="button" onClick={finishProblem} disabled={finishing}>
+        {finishing ? "Finishing..." : "Finish problem"}
+      </button>
     </div>
   );
 }
