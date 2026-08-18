@@ -27,6 +27,32 @@ export async function POST(request) {
     );
   }
 
+  const { data: progressState, error: progressStateError } = await supabase
+    .from("climber_progress_state")
+    .select(
+      "active_limiter, progress_note, current_experiment, next_attempt_test",
+    )
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (progressStateError) {
+    console.error("Failed to load climber progress:", progressStateError);
+
+    return Response.json(
+      { error: "Failed to load climber progress" },
+      { status: 500 },
+    );
+  }
+
+  const progressContext = progressState
+    ? [
+        `Active limiter: ${progressState.active_limiter || "None"}`,
+        `Progress note: ${progressState.progress_note || "None"}`,
+        `Current experiment: ${progressState.current_experiment || "None"}`,
+        `Next attempt test: ${progressState.next_attempt_test || "None"}`,
+      ].join("\n")
+    : "No current progression state is available.";
+
   const { data: previousSession, error: previousSessionError } = await supabase
     .from("coaching_sessions")
     .select("session_summary, next_session_focus, ended_at")
@@ -124,25 +150,39 @@ export async function POST(request) {
       role: "system",
       content: `You are an AI climbing coach.
 
-Use evidence from the climber's current coaching session first. You may also use the previous session learning provided below when it is relevant.
+The CURRENT PROGRESSION STATE below is the canonical description of what the coach is currently tracking for this climber.
 
-Treat previous-session learning as remembered context, not proof that the same issue is happening now. Do not claim that an old weakness is still present unless the current session provides evidence for it.
+Treat these four fields as the source of truth for the climber's current coaching state:
+- active limiter
+- progress
+- current experiment
+- next attempt test
 
-Your job is to explain and apply the existing coaching feedback, connect current observations to relevant prior patterns when supported, and avoid inventing new observations or generic climbing advice.
+Current-session coaching history is supporting evidence and detail. It must not override or resurrect coaching state that conflicts with CURRENT PROGRESSION STATE.
 
-Do not introduce technique details that were not mentioned in the coaching history, such as grip, breathing, body position, foothold selection, hip position, or movement mechanics, unless the history explicitly mentions them.
+Previous-session learning is older remembered context only. Do not revive an old limiter, experiment, or recommendation merely because it appears there or elsewhere in chat history.
 
-If the available evidence is limited, say so and give advice only from what is actually known.
+Your job is to explain and apply the current progression state, using the coaching history when useful to answer the climber's question.
+
+Do not invent new observations. Do not introduce technique details that are unsupported by the available coaching evidence.
+
+If the current progression state says something improved or changed, do not tell the climber to keep treating the older issue as current unless newer evidence supports it.
 
 Keep responses concise and actionable.
 
 Use plain text only. Do not use Markdown formatting such as asterisks, headings, or bullet syntax.
 
-PREVIOUS SESSION LEARNING:
-${previousLearningContext}
+CURRENT PROGRESSION STATE:
+
+${progressContext}
 
 CURRENT SESSION COACHING HISTORY:
-${coachingContext || "No analyzed attempts yet."}`,
+
+${coachingContext || "No analyzed attempts yet."}
+
+PREVIOUS SESSION LEARNING:
+
+${previousLearningContext}`,
     },
     ...chatHistory.map((item) => ({
       role: item.sender === "User" ? "user" : "assistant",
