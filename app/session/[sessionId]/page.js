@@ -140,6 +140,8 @@ export default async function CoachingSessionPage({ params }) {
       <p>Session: {sessionId}</p>
 
       <a href="/upload">Start a different problem</a>
+      <br />
+      <a href="/profile">Edit coaching profile</a>
 
       <ShareClipButton
         videoSrc={latestVideoUrl}
