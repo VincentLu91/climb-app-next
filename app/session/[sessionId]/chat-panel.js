@@ -19,27 +19,35 @@ export default function ChatPanel({
   const [inputValue, setInputValue] = useState("");
   const [progressState, setProgressState] = useState(initialProgressState);
   const [finishing, setFinishing] = useState(false);
+  const [savingFeedbackMessageId, setSavingFeedbackMessageId] = useState(null);
 
   const endRef = useRef(null);
   const uploadFormRef = useRef(null);
 
   async function saveMessage(message, sender) {
     if (!userId || !coachingSessionId) {
-      return;
+      return null;
     }
 
     const supabase = createClient();
 
-    const { error } = await supabase.from("chat_history").insert({
-      user_id: userId,
-      coaching_session_id: coachingSessionId,
-      message,
-      sender,
-    });
+    const { data, error } = await supabase
+      .from("chat_history")
+      .insert({
+        user_id: userId,
+        coaching_session_id: coachingSessionId,
+        message,
+        sender,
+      })
+      .select("id")
+      .single();
 
     if (error) {
       console.error("Error saving message:", error.message);
+      return null;
     }
+
+    return data.id;
   }
 
   useEffect(() => {
@@ -48,17 +56,19 @@ export default function ChatPanel({
 
   useEffect(() => {
     function handleCoachMessage(event) {
-      const message = event.detail?.message;
+      const coachMessage = event.detail;
 
-      if (!message) {
+      if (!coachMessage?.message) {
         return;
       }
 
       setMessages((currentMessages) => [
         ...currentMessages,
         {
-          message,
+          id: coachMessage.id,
+          message: coachMessage.message,
           sender: "ChatGPT",
+          coachingHelpful: coachMessage.coachingHelpful ?? null,
         },
       ]);
     }
@@ -123,22 +133,74 @@ export default function ChatPanel({
 
       const data = await response.json();
       const agentText = data.reply ?? "(No response from coach)";
+      const coachMessageId = await saveMessage(agentText, "ChatGPT");
 
-      setMessages([...chatMessages, { message: agentText, sender: "ChatGPT" }]);
-
-      await saveMessage(agentText, "ChatGPT");
+      setMessages([
+        ...chatMessages,
+        {
+          id: coachMessageId,
+          message: agentText,
+          sender: "ChatGPT",
+          coachingHelpful: null,
+        },
+      ]);
     } catch (error) {
       console.error("Coach error:", error);
 
       const fallback =
         "Sorry—I'm having trouble reaching the AI coach right now. Please try again.";
 
-      setMessages([...chatMessages, { message: fallback, sender: "ChatGPT" }]);
+      const coachMessageId = await saveMessage(fallback, "ChatGPT");
 
-      await saveMessage(fallback, "ChatGPT");
+      setMessages([
+        ...chatMessages,
+        {
+          id: coachMessageId,
+          message: fallback,
+          sender: "ChatGPT",
+          coachingHelpful: null,
+        },
+      ]);
     } finally {
       setTyping(false);
     }
+  }
+
+  async function saveCoachingFeedback(messageId, helpful) {
+    if (!messageId || savingFeedbackMessageId === messageId) {
+      return;
+    }
+
+    setSavingFeedbackMessageId(messageId);
+
+    const supabase = createClient();
+
+    const { error } = await supabase
+      .from("chat_history")
+      .update({
+        coaching_helpful: helpful,
+        coaching_feedback_at: new Date().toISOString(),
+      })
+      .eq("id", messageId)
+      .eq("user_id", userId);
+
+    if (error) {
+      console.error("Failed to save coaching feedback:", error);
+      alert("Failed to save feedback.");
+    } else {
+      setMessages((currentMessages) =>
+        currentMessages.map((item) =>
+          item.id === messageId
+            ? {
+                ...item,
+                coachingHelpful: helpful,
+              }
+            : item,
+        ),
+      );
+    }
+
+    setSavingFeedbackMessageId(null);
   }
 
   async function finishProblem() {
@@ -235,7 +297,7 @@ export default function ChatPanel({
 
       <div>
         {messages.map((item, index) => (
-          <div key={index}>
+          <div key={item.id ?? index}>
             <strong>{item.sender === "user" ? "You" : "Coach"}:</strong>
 
             {item.attachment?.signedUrl && (
@@ -253,6 +315,28 @@ export default function ChatPanel({
             )}
 
             <span>{item.message}</span>
+
+            {item.sender !== "user" && item.id && (
+              <div>
+                <span>Helpful? </span>
+
+                <button
+                  type="button"
+                  onClick={() => saveCoachingFeedback(item.id, true)}
+                  disabled={savingFeedbackMessageId === item.id}
+                >
+                  {item.coachingHelpful === true ? "Yes (selected)" : "Yes"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => saveCoachingFeedback(item.id, false)}
+                  disabled={savingFeedbackMessageId === item.id}
+                >
+                  {item.coachingHelpful === false ? "No (selected)" : "No"}
+                </button>
+              </div>
+            )}
           </div>
         ))}
 
