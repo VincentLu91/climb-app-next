@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import ChatPanel from "./chat-panel";
+import ShareClipButton from "./share-clip-button";
 
 export default async function CoachingSessionPage({ params }) {
   const { sessionId } = await params;
@@ -24,6 +25,51 @@ export default async function CoachingSessionPage({ params }) {
 
   if (!coachingSession) {
     redirect("/upload");
+  }
+
+  const { data: latestUpload, error: latestUploadError } = await supabase
+    .from("uploads")
+    .select("id, media_path, attempt_number")
+    .eq("coaching_session_id", sessionId)
+    .eq("media_type", "video")
+    .order("attempt_number", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (latestUploadError) {
+    console.error("Failed to load latest video upload:", latestUploadError);
+  }
+
+  let latestAnalysis = null;
+
+  if (latestUpload) {
+    const { data, error } = await supabase
+      .from("analyses")
+      .select("result")
+      .eq("upload_id", latestUpload.id)
+      .eq("status", "completed")
+      .maybeSingle();
+
+    if (error) {
+      console.error("Failed to load latest analysis:", error);
+    }
+
+    latestAnalysis = data;
+  }
+
+  let latestVideoUrl = null;
+
+  if (latestUpload?.media_path) {
+    const { data: signedUrlData, error: signedUrlError } =
+      await supabase.storage
+        .from("climbing-media")
+        .createSignedUrl(latestUpload.media_path, 3600);
+
+    if (signedUrlError) {
+      console.error("Failed to create latest video URL:", signedUrlError);
+    }
+
+    latestVideoUrl = signedUrlData?.signedUrl ?? null;
   }
 
   const { data: progressState, error: progressStateError } = await supabase
@@ -94,6 +140,11 @@ export default async function CoachingSessionPage({ params }) {
       <p>Session: {sessionId}</p>
 
       <a href="/upload">Start a different problem</a>
+
+      <ShareClipButton
+        videoSrc={latestVideoUrl}
+        coachingCaption={latestAnalysis?.result ?? ""}
+      />
 
       <ChatPanel
         coachingSessionId={sessionId}
