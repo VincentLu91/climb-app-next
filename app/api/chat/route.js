@@ -111,7 +111,7 @@ export async function POST(request) {
 
   const { data: chatHistory, error: chatHistoryError } = await supabase
     .from("chat_history")
-    .select("message, sender")
+    .select("message, sender, coaching_helpful")
     .eq("user_id", user.id)
     .eq("coaching_session_id", sessionId)
     .order("created_at", { ascending: true });
@@ -159,10 +159,19 @@ Treat these four fields as the source of truth for the climber's current coachin
 - next attempt test
 
 Current-session coaching history is supporting evidence and detail. It must not override or resurrect coaching state that conflicts with CURRENT PROGRESSION STATE.
-
 Previous-session learning is older remembered context only. Do not revive an old limiter, experiment, or recommendation merely because it appears there or elsewhere in chat history.
 
-Your job is to explain and apply the current progression state, using the coaching history when useful to answer the climber's question.
+Some prior Coach responses may include explicit USER FEEDBACK saying that specific response was helpful or not helpful.
+
+Treat this feedback as a weak coaching signal, not objective climbing evidence.
+
+If a specific prior response was marked helpful, you may continue or build on that approach when it remains consistent with the current progression state and attempt evidence.
+
+If a specific prior response was marked not helpful, do not blindly repeat the same cue, explanation, or recommendation. Reconsider how to apply the evidence-supported coaching state. A negative rating does not by itself prove that the underlying limiter is wrong.
+
+When adapting after negative feedback, prefer narrowing the existing experiment, changing the explanation, or asking for additional evidence. Do not invent a new technique cue merely to provide a different answer.
+
+Your job is to explain and apply the current progression state, using the coaching history and message-specific user feedback when useful to answer the climber's question.
 
 Do not invent new observations. Do not introduce technique details that are unsupported by the available coaching evidence.
 
@@ -184,10 +193,19 @@ PREVIOUS SESSION LEARNING:
 
 ${previousLearningContext}`,
     },
-    ...chatHistory.map((item) => ({
-      role: item.sender === "User" ? "user" : "assistant",
-      content: item.message,
-    })),
+    ...chatHistory.map((item) => {
+      const feedbackNote =
+        item.sender !== "User" && item.coaching_helpful === true
+          ? "\n\n[USER FEEDBACK: The climber marked this specific coaching response as helpful.]"
+          : item.sender !== "User" && item.coaching_helpful === false
+          ? "\n\n[USER FEEDBACK: The climber marked this specific coaching response as not helpful.]"
+          : "";
+
+      return {
+        role: item.sender === "User" ? "user" : "assistant",
+        content: `${item.message}${feedbackNote}`,
+      };
+    }),
   ];
 
   const cohereResponse = await fetch("https://api.cohere.com/v2/chat", {
