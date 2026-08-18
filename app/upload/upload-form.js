@@ -2,6 +2,8 @@
 
 import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
 import { useRouter } from "next/navigation";
+import posthog from "posthog-js";
+
 import { createClient } from "@/lib/supabase/client";
 
 async function getFileHash(file) {
@@ -395,34 +397,11 @@ const UploadForm = forwardRef(function UploadForm(
         return;
       }
 
-      const progressResponse = await fetch("/api/update-progress", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          analysisText,
-        }),
+      posthog.capture("attempt_analyzed", {
+        session_id: activeCoachingSessionId,
+        attempt_number: attemptNumber,
+        is_retry: attemptNumber > 1,
       });
-
-      const progressData = await progressResponse.json();
-
-      if (!progressResponse.ok) {
-        console.error("Progress update failed:", progressData);
-      } else {
-        console.log("Progress state:", progressData.updatedState);
-
-        window.dispatchEvent(
-          new CustomEvent("climbing-progress-update", {
-            detail: {
-              active_limiter: progressData.updatedState.activeLimiter,
-              progress_note: progressData.updatedState.progressNote,
-              current_experiment: progressData.updatedState.currentExperiment,
-              next_attempt_test: progressData.updatedState.nextAttemptTest,
-            },
-          }),
-        );
-      }
 
       const { data: savedCoachMessage, error: saveChatError } = await supabase
         .from("chat_history")
@@ -447,6 +426,47 @@ const UploadForm = forwardRef(function UploadForm(
               id: savedCoachMessage.id,
               message: analysisText,
               coachingHelpful: null,
+            },
+          }),
+        );
+      }
+
+      const progressResponse = await fetch("/api/update-progress", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          analysisText,
+        }),
+      });
+
+      const progressData = await progressResponse.json();
+
+      if (!progressResponse.ok) {
+        console.error("Progress update failed:", progressData);
+      } else {
+        console.log("Progress state:", progressData.updatedState);
+
+        posthog.capture(
+          "progression_state_updated",
+          {
+            session_id: activeCoachingSessionId,
+            attempt_number: attemptNumber,
+            active_limiter: progressData.updatedState.activeLimiter,
+          },
+          {
+            send_instantly: true,
+          },
+        );
+
+        window.dispatchEvent(
+          new CustomEvent("climbing-progress-update", {
+            detail: {
+              active_limiter: progressData.updatedState.activeLimiter,
+              progress_note: progressData.updatedState.progressNote,
+              current_experiment: progressData.updatedState.currentExperiment,
+              next_attempt_test: progressData.updatedState.nextAttemptTest,
             },
           }),
         );
@@ -526,6 +546,17 @@ Give a concise response that helps the climber decide what to work on or what to
         console.error("Failed to save image analysis:", saveImageAnalysisError);
         return;
       }
+
+      posthog.capture(
+        "wall_photo_used",
+        {
+          session_id: activeCoachingSessionId,
+          has_text_context: Boolean(messageText.trim()),
+        },
+        {
+          send_instantly: true,
+        },
+      );
 
       const { data: savedImageCoachMessage, error: saveImageChatError } =
         await supabase

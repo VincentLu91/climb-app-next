@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import posthog from "posthog-js";
+
 import { createClient } from "@/lib/supabase/client";
 
 export default function StartSessionButton() {
@@ -52,6 +54,18 @@ export default function StartSessionButton() {
       setStarting(false);
       return;
     }
+
+    posthog.capture(
+      "coaching_session_started",
+      {
+        session_id: session.id,
+        has_existing_progress: Boolean(progressState?.active_limiter),
+      },
+      {
+        transport: "sendBeacon",
+        send_instantly: true,
+      },
+    );
 
     const kickoffMessage = progressState?.active_limiter
       ? "I've carried your current coaching focus forward. What are you working on today? You can tell me, send a photo of the wall or problem, or send your first attempt."
