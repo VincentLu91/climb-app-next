@@ -9,12 +9,16 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@remotion/cli": "4.0.512",
+    "@remotion/media": "4.0.512",
+    "@remotion/web-renderer": "4.0.512",
     "@supabase/ssr": "^0.12.4",
     "@supabase/supabase-js": "^2.112.3",
     "next": "16.3.0",
     "posthog-js": "^1.417.4",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "remotion": "4.0.512"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
