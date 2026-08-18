@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import posthog from "posthog-js";
 
 import { createClient } from "@/lib/supabase/client";
 import UploadForm from "@/app/upload/upload-form";
@@ -144,6 +145,17 @@ export default function ChatPanel({
           coachingHelpful: null,
         },
       ]);
+
+      posthog.capture(
+        "text_coach_interaction",
+        {
+          session_id: coachingSessionId,
+          coach_message_id: coachMessageId,
+        },
+        {
+          send_instantly: true,
+        },
+      );
     } catch (error) {
       console.error("Coach error:", error);
 
@@ -197,6 +209,18 @@ export default function ChatPanel({
               }
             : item,
         ),
+      );
+
+      posthog.capture(
+        "coaching_feedback_given",
+        {
+          session_id: coachingSessionId,
+          coach_message_id: messageId,
+          helpful,
+        },
+        {
+          send_instantly: true,
+        },
       );
     }
 
