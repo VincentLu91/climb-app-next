@@ -1,7 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import posthog from "posthog-js";
+
 import { createClient } from "../../lib/supabase/client";
+
 import { useRouter } from "next/navigation";
 
 const experienceOptions = ["Beginner", "Intermediate", "Advanced"];
@@ -39,8 +42,32 @@ export default function OnboardingForm({ userId }) {
   const totalSteps = 6;
 
   const router = useRouter();
+  const onboardingStartedTracked = useRef(false);
+
+  useEffect(() => {
+    if (onboardingStartedTracked.current) {
+      return;
+    }
+
+    onboardingStartedTracked.current = true;
+
+    posthog.capture(
+      "onboarding_started",
+      {
+        onboarding_version: 1,
+      },
+      {
+        send_instantly: true,
+      },
+    );
+  }, []);
 
   function handleNext() {
+    posthog.capture("onboarding_step_completed", {
+      onboarding_version: 1,
+      step_number: step + 1,
+    });
+
     setStep((currentStep) => Math.min(currentStep + 1, totalSteps - 1));
   }
 
@@ -69,6 +96,28 @@ export default function OnboardingForm({ userId }) {
       alert(error.message);
       return;
     }
+
+    posthog.capture(
+      "onboarding_step_completed",
+      {
+        onboarding_version: 1,
+        step_number: 6,
+      },
+      {
+        send_instantly: true,
+      },
+    );
+
+    posthog.capture(
+      "onboarding_completed",
+      {
+        onboarding_version: 1,
+        total_steps: totalSteps,
+      },
+      {
+        send_instantly: true,
+      },
+    );
 
     router.push("/upload");
   }

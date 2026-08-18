@@ -124,6 +124,30 @@ const UploadForm = forwardRef(function UploadForm(
       return;
     }
 
+    const { count: existingUploadCount, error: existingUploadCountError } =
+      await supabase
+        .from("uploads")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id);
+
+    if (existingUploadCountError) {
+      console.error(
+        "Failed to check previous uploads for analytics:",
+        existingUploadCountError,
+      );
+    } else if ((existingUploadCount ?? 0) === 0) {
+      posthog.capture(
+        "first_analysis_clicked",
+        {
+          onboarding_version: 1,
+          media_type: file.type.startsWith("video/") ? "video" : "image",
+        },
+        {
+          send_instantly: true,
+        },
+      );
+    }
+
     let activeCoachingSessionId = coachingSessionId;
 
     if (!activeCoachingSessionId) {
