@@ -27,6 +27,61 @@ export async function POST(request) {
     );
   }
 
+  const { data: progressState, error: progressStateError } = await supabase
+    .from("climber_progress_state")
+    .select(
+      "active_limiter, progress_note, current_experiment, next_attempt_test",
+    )
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (progressStateError) {
+    console.error("Failed to load climber progress:", progressStateError);
+
+    return Response.json(
+      { error: "Failed to load climber progress" },
+      { status: 500 },
+    );
+  }
+
+  const { data: recentSessions, error: recentSessionsError } = await supabase
+    .from("coaching_sessions")
+    .select("session_summary, next_session_focus, ended_at")
+    .eq("user_id", user.id)
+    .neq("id", sessionId)
+    .not("ended_at", "is", null)
+    .order("ended_at", { ascending: false })
+    .limit(3);
+
+  if (recentSessionsError) {
+    console.error("Failed to load recent sessions:", recentSessionsError);
+
+    return Response.json(
+      { error: "Failed to load recent climbing history" },
+      { status: 500 },
+    );
+  }
+
+  const progressContext = progressState
+    ? [
+        `Active limiter: ${progressState.active_limiter || "None"}`,
+        `Progress: ${progressState.progress_note || "None"}`,
+        `Current experiment: ${progressState.current_experiment || "None"}`,
+        `Next attempt test: ${progressState.next_attempt_test || "None"}`,
+      ].join("\n")
+    : "No accumulated progression state is available.";
+
+  const recentSessionContext = recentSessions?.length
+    ? recentSessions
+        .map(
+          (session, index) =>
+            `Recent session ${index + 1}:
+Summary: ${session.session_summary || "None"}
+Next focus: ${session.next_session_focus || "None"}`,
+        )
+        .join("\n\n")
+    : "No previous completed sessions are available.";
+
   const { data: chatHistory, error: chatHistoryError } = await supabase
     .from("chat_history")
     .select("message, sender, created_at")
@@ -58,17 +113,34 @@ export async function POST(request) {
       messages: [
         {
           role: "system",
-          content: `You are summarizing a completed climbing coaching session.
+          content: `You are summarizing a completed climbing coaching session and choosing the climber's next-session priority.
 
-Use only evidence from the session transcript.
+For SESSION_SUMMARY:
+Use only evidence from the CURRENT SESSION TRANSCRIPT. Summarize what happened in this session, including meaningful changes, limitations, and what appeared to work.
+
+For NEXT_SESSION_FOCUS:
+Use the CURRENT PROGRESSION STATE as the canonical description of what the coach currently believes about this climber.
+Use RECENT COMPLETED SESSIONS to identify patterns that have persisted across sessions.
+Use the current session as the newest evidence.
+
+If the same limiter or coaching need persists across sessions, prioritize it.
+If the newest evidence shows that an older issue improved or stopped being important, do not resurrect it.
+The recommendation should be specific enough to guide the next climbing session: state what the climber should practice or test and what improvement they should look for.
+Do not create a generic training program or invent drills unsupported by the coaching evidence.
 
 Return exactly two lines:
+SESSION_SUMMARY: <concise summary of this completed session>
+NEXT_SESSION_FOCUS: <one specific personalized next-session recommendation>
 
-SESSION_SUMMARY: <concise summary of what happened, including meaningful changes, recurring limitations, and what appeared to work>
-NEXT_SESSION_FOCUS: <one concise priority the climber should carry into the next session>
+Use plain text only.
 
-Do not invent observations that are not present in the transcript.
-Use plain text only.`,
+CURRENT PROGRESSION STATE:
+
+${progressContext}
+
+RECENT COMPLETED SESSIONS:
+
+${recentSessionContext}`,
         },
         {
           role: "user",
