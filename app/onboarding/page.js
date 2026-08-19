@@ -15,9 +15,13 @@ export default async function OnboardingPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("display_name")
+    .select("display_name, onboarded_at")
     .eq("id", user.id)
     .single();
+
+  if (profile?.onboarded_at) {
+    redirect("/");
+  }
 
   return (
     <main>
