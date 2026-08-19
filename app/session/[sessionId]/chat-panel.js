@@ -291,7 +291,10 @@ export default function ChatPanel({
       if (!response.ok) {
         console.error("Finish session error:", data);
 
-        if (data.code === "SUBSCRIPTION_REQUIRED") {
+        if (
+          data.code === "SUBSCRIPTION_REQUIRED" ||
+          data.code === "INSUFFICIENT_CREDITS"
+        ) {
           posthog.capture(
             "paywall_viewed",
             {
