@@ -374,28 +374,7 @@ const UploadForm = forwardRef(function UploadForm(
             },
           );
 
-          const checkoutResponse = await fetch("/api/checkout", {
-            method: "POST",
-          });
-
-          const checkoutData = await checkoutResponse.json();
-
-          if (checkoutResponse.ok && checkoutData.url) {
-            posthog.capture(
-              "checkout_started",
-              {
-                source: "video_analysis",
-              },
-              {
-                send_instantly: true,
-              },
-            );
-
-            window.location.href = checkoutData.url;
-            return;
-          }
-
-          alert("Unable to start checkout.");
+          router.push("/pricing?source=video_analysis");
           return;
         }
 
@@ -599,28 +578,7 @@ Give a concise response that helps the climber decide what to work on or what to
             },
           );
 
-          const checkoutResponse = await fetch("/api/checkout", {
-            method: "POST",
-          });
-
-          const checkoutData = await checkoutResponse.json();
-
-          if (checkoutResponse.ok && checkoutData.url) {
-            posthog.capture(
-              "checkout_started",
-              {
-                source: "image_analysis",
-              },
-              {
-                send_instantly: true,
-              },
-            );
-
-            window.location.href = checkoutData.url;
-            return;
-          }
-
-          alert("Unable to start checkout.");
+          router.push("/pricing?source=image_analysis");
           return;
         }
 
