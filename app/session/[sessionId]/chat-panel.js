@@ -133,6 +133,47 @@ export default function ChatPanel({
       });
 
       const data = await response.json();
+
+      if (!response.ok) {
+        if (data.code === "SUBSCRIPTION_REQUIRED") {
+          posthog.capture(
+            "paywall_viewed",
+            {
+              source: "chat_coaching",
+            },
+            {
+              send_instantly: true,
+            },
+          );
+
+          const checkoutResponse = await fetch("/api/checkout", {
+            method: "POST",
+          });
+
+          const checkoutData = await checkoutResponse.json();
+
+          if (checkoutResponse.ok && checkoutData.url) {
+            posthog.capture(
+              "checkout_started",
+              {
+                source: "chat_coaching",
+              },
+              {
+                send_instantly: true,
+              },
+            );
+
+            window.location.href = checkoutData.url;
+            return;
+          }
+
+          alert("Unable to start checkout.");
+          return;
+        }
+
+        throw new Error(data.error || "Chat request failed.");
+      }
+
       const agentText = data.reply ?? "(No response from coach)";
       const coachMessageId = await saveMessage(agentText, "ChatGPT");
 
@@ -249,6 +290,43 @@ export default function ChatPanel({
 
       if (!response.ok) {
         console.error("Finish session error:", data);
+
+        if (data.code === "SUBSCRIPTION_REQUIRED") {
+          posthog.capture(
+            "paywall_viewed",
+            {
+              source: "finish_session",
+            },
+            {
+              send_instantly: true,
+            },
+          );
+
+          const checkoutResponse = await fetch("/api/checkout", {
+            method: "POST",
+          });
+
+          const checkoutData = await checkoutResponse.json();
+
+          if (checkoutResponse.ok && checkoutData.url) {
+            posthog.capture(
+              "checkout_started",
+              {
+                source: "finish_session",
+              },
+              {
+                send_instantly: true,
+              },
+            );
+
+            window.location.href = checkoutData.url;
+            return;
+          }
+
+          alert("Unable to start checkout.");
+          return;
+        }
+
         alert("Failed to finish this problem.");
         return;
       }
