@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 
 import UploadForm from "./upload-form";
 import StartSessionButton from "./start-session-button";
+import CheckoutSuccessTracker from "./checkout-success-tracker";
 
 export default async function UploadPage() {
   const supabase = await createClient();
@@ -52,6 +53,8 @@ export default async function UploadPage() {
 
   return (
     <>
+      <CheckoutSuccessTracker />
+
       <h1>Climbing Coach</h1>
 
       <StartSessionButton />
