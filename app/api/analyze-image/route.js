@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { hasActiveSubscription } from "@/lib/subscription/entitlement";
+import { spendCredits } from "@/lib/subscription/entitlement";
 
 export async function POST(request) {
   try {
@@ -18,18 +18,6 @@ export async function POST(request) {
 
     if (userError || !user) {
       return Response.json({ error: "Unauthorized." }, { status: 401 });
-    }
-
-    const activeSubscription = await hasActiveSubscription(supabase, user.id);
-
-    if (!activeSubscription) {
-      return Response.json(
-        {
-          error: "Subscription required.",
-          code: "SUBSCRIPTION_REQUIRED",
-        },
-        { status: 402 },
-      );
     }
 
     let progressState = null;
@@ -53,6 +41,22 @@ export async function POST(request) {
 Current experiment: ${progressState.current_experiment || "None"}
 Next attempt test: ${progressState.next_attempt_test || "None"}`
       : "No current progression state is available.";
+
+    const creditsSpent = await spendCredits({
+      userId: user.id,
+      amount: 1,
+      reason: "image_analysis",
+    });
+
+    if (!creditsSpent) {
+      return Response.json(
+        {
+          error: "Not enough credits.",
+          code: "INSUFFICIENT_CREDITS",
+        },
+        { status: 402 },
+      );
+    }
 
     const falResponse = await fetch(
       "https://fal.run/openrouter/router/vision",

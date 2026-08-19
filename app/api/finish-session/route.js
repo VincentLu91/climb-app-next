@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { hasActiveSubscription } from "@/lib/subscription/entitlement";
+import { spendCredits } from "@/lib/subscription/entitlement";
 
 export async function POST(request) {
   const { sessionId } = await request.json();
@@ -12,18 +12,6 @@ export async function POST(request) {
 
   if (!user) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const activeSubscription = await hasActiveSubscription(supabase, user.id);
-
-  if (!activeSubscription) {
-    return Response.json(
-      {
-        error: "Subscription required.",
-        code: "SUBSCRIPTION_REQUIRED",
-      },
-      { status: 402 },
-    );
   }
 
   const { data: coachingSession } = await supabase
@@ -114,6 +102,22 @@ Next focus: ${session.next_session_focus || "None"}`,
   const sessionTranscript = chatHistory
     .map((item) => `${item.sender}: ${item.message}`)
     .join("\n");
+
+  const creditsSpent = await spendCredits({
+    userId: user.id,
+    amount: 1,
+    reason: "finish_session",
+  });
+
+  if (!creditsSpent) {
+    return Response.json(
+      {
+        error: "Not enough credits.",
+        code: "INSUFFICIENT_CREDITS",
+      },
+      { status: 402 },
+    );
+  }
 
   const cohereResponse = await fetch("https://api.cohere.com/v2/chat", {
     method: "POST",

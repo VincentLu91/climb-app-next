@@ -41,6 +41,51 @@ async function syncSubscription(subscription) {
   }
 }
 
+function parseCreditAmount(value, label) {
+  const amount = Number.parseInt(value ?? "", 10);
+
+  if (!Number.isInteger(amount) || amount <= 0) {
+    throw new Error(`Invalid ${label} credit amount`);
+  }
+
+  return amount;
+}
+
+async function refreshSubscriptionCredits({
+  userId,
+  amount,
+  reason,
+  stripeEventId,
+}) {
+  const { error } = await getSupabaseAdmin().rpc(
+    "refresh_subscription_credits_once",
+    {
+      p_user_id: userId,
+      p_amount: amount,
+      p_reason: reason,
+      p_stripe_event_id: stripeEventId,
+    },
+  );
+
+  if (error) {
+    throw error;
+  }
+}
+
+async function grantTopupCredits({ userId, amount, reason, stripeEventId }) {
+  const { error } = await getSupabaseAdmin().rpc("grant_credits_once", {
+    p_user_id: userId,
+    p_bucket: "topup",
+    p_amount: amount,
+    p_reason: reason,
+    p_stripe_event_id: stripeEventId,
+  });
+
+  if (error) {
+    throw error;
+  }
+}
+
 export async function POST(request) {
   const stripe = getStripe();
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -73,13 +118,90 @@ export async function POST(request) {
       case "checkout.session.completed": {
         const session = event.data.object;
 
+        if (
+          session.mode === "payment" &&
+          session.payment_status === "paid" &&
+          session.metadata?.purchase_type === "topup"
+        ) {
+          const userId = session.metadata?.user_id;
+
+          if (!userId) {
+            throw new Error("Top-up checkout is missing user_id metadata");
+          }
+
+          const amount = parseCreditAmount(
+            session.metadata?.credit_amount,
+            "top-up",
+          );
+
+          await grantTopupCredits({
+            userId,
+            amount,
+            reason: "topup_purchase",
+            stripeEventId: event.id,
+          });
+        }
+
         if (typeof session.subscription === "string") {
           const subscription = await stripe.subscriptions.retrieve(
             session.subscription,
           );
 
           await syncSubscription(subscription);
+
+          if (subscription.status === "trialing") {
+            const userId = subscription.metadata?.user_id;
+
+            if (!userId) {
+              throw new Error("Trial subscription is missing user_id metadata");
+            }
+
+            const amount = parseCreditAmount(
+              subscription.metadata?.trial_credit_amount,
+              "trial",
+            );
+
+            await refreshSubscriptionCredits({
+              userId,
+              amount,
+              reason: "subscription_trial_started",
+              stripeEventId: event.id,
+            });
+          }
         }
+
+        break;
+      }
+
+      case "invoice.paid": {
+        const invoice = event.data.object;
+
+        if (invoice.amount_paid <= 0) {
+          break;
+        }
+
+        const subscriptionMetadata =
+          invoice.parent?.subscription_details?.metadata;
+
+        const userId = subscriptionMetadata?.user_id;
+
+        if (!userId) {
+          throw new Error(
+            "Paid subscription invoice is missing user_id metadata",
+          );
+        }
+
+        const amount = parseCreditAmount(
+          subscriptionMetadata?.plan_credit_amount,
+          "subscription",
+        );
+
+        await refreshSubscriptionCredits({
+          userId,
+          amount,
+          reason: "subscription_period_paid",
+          stripeEventId: event.id,
+        });
 
         break;
       }
