@@ -360,7 +360,10 @@ const UploadForm = forwardRef(function UploadForm(
       if (!analyzeResponse.ok) {
         console.error("Analyze API error:", analyzeData);
 
-        if (analyzeData.code === "SUBSCRIPTION_REQUIRED") {
+        if (
+          analyzeData.code === "SUBSCRIPTION_REQUIRED" ||
+          analyzeData.code === "INSUFFICIENT_CREDITS"
+        ) {
           posthog.capture(
             "paywall_viewed",
             {
@@ -582,7 +585,10 @@ Give a concise response that helps the climber decide what to work on or what to
       if (!imageResponse.ok) {
         console.error("Image analysis error:", imageData);
 
-        if (imageData.code === "SUBSCRIPTION_REQUIRED") {
+        if (
+          imageData.code === "SUBSCRIPTION_REQUIRED" ||
+          imageData.code === "INSUFFICIENT_CREDITS"
+        ) {
           posthog.capture(
             "paywall_viewed",
             {
