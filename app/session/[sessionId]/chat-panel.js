@@ -135,7 +135,10 @@ export default function ChatPanel({
       const data = await response.json();
 
       if (!response.ok) {
-        if (data.code === "SUBSCRIPTION_REQUIRED") {
+        if (
+          data.code === "SUBSCRIPTION_REQUIRED" ||
+          data.code === "INSUFFICIENT_CREDITS"
+        ) {
           posthog.capture(
             "paywall_viewed",
             {
@@ -146,28 +149,7 @@ export default function ChatPanel({
             },
           );
 
-          const checkoutResponse = await fetch("/api/checkout", {
-            method: "POST",
-          });
-
-          const checkoutData = await checkoutResponse.json();
-
-          if (checkoutResponse.ok && checkoutData.url) {
-            posthog.capture(
-              "checkout_started",
-              {
-                source: "chat_coaching",
-              },
-              {
-                send_instantly: true,
-              },
-            );
-
-            window.location.href = checkoutData.url;
-            return;
-          }
-
-          alert("Unable to start checkout.");
+          router.push("/pricing?source=chat_coaching");
           return;
         }
 
@@ -305,28 +287,7 @@ export default function ChatPanel({
             },
           );
 
-          const checkoutResponse = await fetch("/api/checkout", {
-            method: "POST",
-          });
-
-          const checkoutData = await checkoutResponse.json();
-
-          if (checkoutResponse.ok && checkoutData.url) {
-            posthog.capture(
-              "checkout_started",
-              {
-                source: "finish_session",
-              },
-              {
-                send_instantly: true,
-              },
-            );
-
-            window.location.href = checkoutData.url;
-            return;
-          }
-
-          alert("Unable to start checkout.");
+          router.push("/pricing?source=finish_session");
           return;
         }
 
