@@ -46,12 +46,26 @@ export async function POST(request) {
     const { data: existingSubscription, error: subscriptionError } =
       await supabase
         .from("subscriptions")
-        .select("stripe_customer_id")
+        .select("stripe_customer_id, status")
         .eq("user_id", user.id)
         .maybeSingle();
 
     if (subscriptionError) {
       throw subscriptionError;
+    }
+
+    if (
+      purchaseType !== "topup" &&
+      (existingSubscription?.status === "active" ||
+        existingSubscription?.status === "trialing")
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "You already have an active subscription. Buy a credit pack instead.",
+        },
+        { status: 400 },
+      );
     }
 
     const customerParams = existingSubscription?.stripe_customer_id
