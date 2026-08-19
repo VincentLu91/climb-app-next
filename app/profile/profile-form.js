@@ -85,6 +85,21 @@ export default function ProfileForm({ userId, profile }) {
     alert("Profile updated.");
   }
 
+  async function handleManageBilling() {
+    const response = await fetch("/api/customer-portal", {
+      method: "POST",
+    });
+
+    const data = await response.json();
+
+    if (response.ok && data.url) {
+      window.location.href = data.url;
+      return;
+    }
+
+    alert(data.error || "Unable to open billing portal.");
+  }
+
   return (
     <form onSubmit={handleSubmit}>
       <label>
@@ -159,6 +174,10 @@ export default function ProfileForm({ userId, profile }) {
       </label>
 
       <button type="submit">Save changes</button>
+
+      <button type="button" onClick={handleManageBilling}>
+        Manage billing
+      </button>
     </form>
   );
 }

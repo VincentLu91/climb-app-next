@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { hasActiveSubscription } from "@/lib/subscription/entitlement";
 
 export async function POST(request) {
   const { sessionId } = await request.json();
@@ -11,6 +12,18 @@ export async function POST(request) {
 
   if (!user) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const activeSubscription = await hasActiveSubscription(supabase, user.id);
+
+  if (!activeSubscription) {
+    return Response.json(
+      {
+        error: "Subscription required.",
+        code: "SUBSCRIPTION_REQUIRED",
+      },
+      { status: 402 },
+    );
   }
 
   const { data: coachingSession } = await supabase

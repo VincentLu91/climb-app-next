@@ -359,6 +359,43 @@ const UploadForm = forwardRef(function UploadForm(
 
       if (!analyzeResponse.ok) {
         console.error("Analyze API error:", analyzeData);
+
+        if (analyzeData.code === "SUBSCRIPTION_REQUIRED") {
+          posthog.capture(
+            "paywall_viewed",
+            {
+              source: "video_analysis",
+            },
+            {
+              send_instantly: true,
+            },
+          );
+
+          const checkoutResponse = await fetch("/api/checkout", {
+            method: "POST",
+          });
+
+          const checkoutData = await checkoutResponse.json();
+
+          if (checkoutResponse.ok && checkoutData.url) {
+            posthog.capture(
+              "checkout_started",
+              {
+                source: "video_analysis",
+              },
+              {
+                send_instantly: true,
+              },
+            );
+
+            window.location.href = checkoutData.url;
+            return;
+          }
+
+          alert("Unable to start checkout.");
+          return;
+        }
+
         alert("Upload saved, but AI analysis submission failed.");
         return;
       }
@@ -544,6 +581,43 @@ Give a concise response that helps the climber decide what to work on or what to
 
       if (!imageResponse.ok) {
         console.error("Image analysis error:", imageData);
+
+        if (imageData.code === "SUBSCRIPTION_REQUIRED") {
+          posthog.capture(
+            "paywall_viewed",
+            {
+              source: "image_analysis",
+            },
+            {
+              send_instantly: true,
+            },
+          );
+
+          const checkoutResponse = await fetch("/api/checkout", {
+            method: "POST",
+          });
+
+          const checkoutData = await checkoutResponse.json();
+
+          if (checkoutResponse.ok && checkoutData.url) {
+            posthog.capture(
+              "checkout_started",
+              {
+                source: "image_analysis",
+              },
+              {
+                send_instantly: true,
+              },
+            );
+
+            window.location.href = checkoutData.url;
+            return;
+          }
+
+          alert("Unable to start checkout.");
+          return;
+        }
+
         alert("Photo uploaded, but image analysis failed.");
         return;
       }
@@ -640,6 +714,7 @@ Give a concise response that helps the climber decide what to work on or what to
 
     if (initialCoachingSessionId) {
       router.push("/upload");
+      router.refresh();
     }
   }
 
