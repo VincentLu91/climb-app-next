@@ -86,6 +86,20 @@ async function grantTopupCredits({ userId, amount, reason, stripeEventId }) {
   }
 }
 
+async function clearSubscriptionCredits(userId) {
+  const { error } = await getSupabaseAdmin()
+    .from("credit_balances")
+    .update({
+      subscription_credits: 0,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("user_id", userId);
+
+  if (error) {
+    throw error;
+  }
+}
+
 export async function POST(request) {
   const stripe = getStripe();
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -208,9 +222,24 @@ export async function POST(request) {
 
       case "customer.subscription.created":
       case "customer.subscription.updated":
-      case "customer.subscription.deleted":
         await syncSubscription(event.data.object);
         break;
+
+      case "customer.subscription.deleted": {
+        const subscription = event.data.object;
+
+        await syncSubscription(subscription);
+
+        const userId = subscription.metadata?.user_id;
+
+        if (!userId) {
+          throw new Error("Canceled subscription is missing user_id metadata");
+        }
+
+        await clearSubscriptionCredits(userId);
+
+        break;
+      }
 
       default:
         break;
