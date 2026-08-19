@@ -1,14 +1,34 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "../../lib/supabase/client";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [checkingAuth, setCheckingAuth] = useState(true);
 
   const router = useRouter();
+
+  useEffect(() => {
+    const supabase = createClient();
+
+    async function checkExistingUser() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (user) {
+        router.replace("/");
+        return;
+      }
+
+      setCheckingAuth(false);
+    }
+
+    checkExistingUser();
+  }, [router]);
 
   async function handleLogin(event) {
     event.preventDefault();
@@ -25,7 +45,8 @@ export default function LoginPage() {
       return;
     }
 
-    router.push("/");
+    router.replace("/");
+    router.refresh();
   }
 
   async function handleSignUp() {
@@ -42,6 +63,10 @@ export default function LoginPage() {
     }
 
     alert("Check your email to confirm your account.");
+  }
+
+  if (checkingAuth) {
+    return null;
   }
 
   return (
