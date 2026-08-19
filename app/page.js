@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "../lib/supabase/server";
 import LogoutButton from "./logout-button";
@@ -40,7 +41,7 @@ export default async function Home() {
       <h1>Climbing App</h1>
       <p>{user ? `Logged in as ${user.email}` : "Not logged in"}</p>
 
-      {user && (
+      {user ? (
         <>
           <section>
             <h2>Credits</h2>
@@ -51,6 +52,8 @@ export default async function Home() {
 
           <LogoutButton />
         </>
+      ) : (
+        <Link href="/login">Log in</Link>
       )}
     </main>
   );
