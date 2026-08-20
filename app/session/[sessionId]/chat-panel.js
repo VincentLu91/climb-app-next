@@ -366,6 +366,13 @@ export default function ChatPanel({
           <div key={item.id ?? index}>
             <strong>{item.sender === "user" ? "You" : "Coach"}:</strong>
 
+            {item.attachment?.media_type === "video" &&
+              item.attachment?.attempt_number && (
+                <div>
+                  <strong>Attempt {item.attachment.attempt_number}</strong>
+                </div>
+              )}
+
             {item.attachment?.signedUrl && (
               <div>
                 {item.attachment.media_type === "video" ? (
@@ -380,7 +387,9 @@ export default function ChatPanel({
               </div>
             )}
 
-            <span>{item.message}</span>
+            {item.message !== `Attempt ${item.attachment?.attempt_number}` && (
+              <span>{item.message}</span>
+            )}
 
             {item.sender !== "user" && item.id && (
               <div>
