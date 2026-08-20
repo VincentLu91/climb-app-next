@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createRequestClient, getRequestUser } from "@/lib/supabase/request";
 import { spendCredits } from "@/lib/subscription/entitlement";
 
 export async function POST(request) {
@@ -10,12 +10,12 @@ export async function POST(request) {
       previousSessionFocus,
     } = await request.json();
 
-    const supabase = await createClient();
+    const { supabase, accessToken } = await createRequestClient(request);
 
     const {
       data: { user },
       error: userError,
-    } = await supabase.auth.getUser();
+    } = await getRequestUser(supabase, accessToken);
 
     if (userError || !user) {
       return Response.json({ error: "Unauthorized." }, { status: 401 });
