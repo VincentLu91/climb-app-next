@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createRequestClient, getRequestUser } from "@/lib/supabase/request";
 import { spendCredits } from "@/lib/subscription/entitlement";
 
 export async function POST(request) {
@@ -8,11 +8,11 @@ export async function POST(request) {
     return Response.json({ error: "Missing analysisText" }, { status: 400 });
   }
 
-  const supabase = await createClient();
+  const { supabase, accessToken } = await createRequestClient(request);
 
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await getRequestUser(supabase, accessToken);
 
   if (!user) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
