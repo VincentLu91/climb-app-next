@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { getStripe } from "@/lib/stripe/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { isFirstPaidPeriodAfterTrial } from "@/lib/subscription/credits";
 
 async function syncSubscription(subscription) {
   const userId = subscription.metadata?.user_id;
@@ -66,6 +67,25 @@ async function refreshSubscriptionCredits({
       p_stripe_event_id: stripeEventId,
     },
   );
+
+  if (error) {
+    throw error;
+  }
+}
+
+async function grantSubscriptionCredits({
+  userId,
+  amount,
+  reason,
+  stripeEventId,
+}) {
+  const { error } = await getSupabaseAdmin().rpc("grant_credits_once", {
+    p_user_id: userId,
+    p_bucket: "subscription",
+    p_amount: amount,
+    p_reason: reason,
+    p_stripe_event_id: stripeEventId,
+  });
 
   if (error) {
     throw error;
@@ -210,12 +230,38 @@ export async function POST(request) {
           "subscription",
         );
 
-        await refreshSubscriptionCredits({
-          userId,
-          amount,
-          reason: "subscription_period_paid",
-          stripeEventId: event.id,
-        });
+        const firstPaidAfterTrial =
+          invoice.billing_reason === "subscription_cycle" &&
+          (await isFirstPaidPeriodAfterTrial(userId));
+
+        if (firstPaidAfterTrial) {
+          const trialAmount = parseCreditAmount(
+            subscriptionMetadata?.trial_credit_amount,
+            "trial",
+          );
+
+          const remainingAmount = amount - trialAmount;
+
+          if (remainingAmount <= 0) {
+            throw new Error(
+              "Paid subscription credits must exceed trial credits",
+            );
+          }
+
+          await grantSubscriptionCredits({
+            userId,
+            amount: remainingAmount,
+            reason: "subscription_period_paid",
+            stripeEventId: event.id,
+          });
+        } else {
+          await refreshSubscriptionCredits({
+            userId,
+            amount,
+            reason: "subscription_period_paid",
+            stripeEventId: event.id,
+          });
+        }
 
         break;
       }

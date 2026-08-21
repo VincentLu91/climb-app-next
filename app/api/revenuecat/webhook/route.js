@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
+import { isFirstPaidPeriodAfterTrial } from "@/lib/subscription/credits";
+
 async function grantTopupCredits({
   userId,
   amount,
@@ -49,6 +51,25 @@ async function refreshSubscriptionCredits({
       p_stripe_event_id: `revenuecat:${revenueCatEventId}`,
     },
   );
+
+  if (error) {
+    throw error;
+  }
+}
+
+async function grantSubscriptionCredits({
+  userId,
+  amount,
+  reason,
+  revenueCatEventId,
+}) {
+  const { error } = await getSupabaseAdmin().rpc("grant_credits_once", {
+    p_user_id: userId,
+    p_bucket: "subscription",
+    p_amount: amount,
+    p_reason: reason,
+    p_stripe_event_id: `revenuecat:${revenueCatEventId}`,
+  });
 
   if (error) {
     throw error;
@@ -143,14 +164,47 @@ export async function POST(request) {
             "subscription credits",
           );
 
-      await refreshSubscriptionCredits({
-        userId,
-        amount,
-        reason: isTrial
-          ? "revenuecat_subscription_trial_started"
-          : "revenuecat_subscription_period_started",
-        revenueCatEventId: event.id,
-      });
+      if (isTrial) {
+        await refreshSubscriptionCredits({
+          userId,
+          amount,
+          reason: "revenuecat_subscription_trial_started",
+          revenueCatEventId: event.id,
+        });
+      } else {
+        const firstPaidAfterTrial =
+          event.type === "RENEWAL" &&
+          (await isFirstPaidPeriodAfterTrial(userId));
+
+        if (firstPaidAfterTrial) {
+          const trialAmount = parseCreditAmount(
+            process.env.TRIAL_CREDIT_AMOUNT,
+            "TRIAL_CREDIT_AMOUNT",
+          );
+
+          const remainingAmount = amount - trialAmount;
+
+          if (remainingAmount <= 0) {
+            throw new Error(
+              "Paid subscription credits must exceed trial credits",
+            );
+          }
+
+          await grantSubscriptionCredits({
+            userId,
+            amount: remainingAmount,
+            reason: "revenuecat_subscription_period_started",
+            revenueCatEventId: event.id,
+          });
+        } else {
+          await refreshSubscriptionCredits({
+            userId,
+            amount,
+            reason: "revenuecat_subscription_period_started",
+            revenueCatEventId: event.id,
+          });
+        }
+      }
     }
 
     if (
