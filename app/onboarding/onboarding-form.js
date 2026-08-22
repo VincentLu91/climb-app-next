@@ -122,158 +122,118 @@ export default function OnboardingForm({ userId }) {
     router.push("/upload");
   }
 
+  const stepMeta = [
+    ["Your name", "A little context helps the coach keep the session personal."],
+    ["Experience", "This helps your coach tailor feedback to your current level."],
+    ["Typical grade", "Choose the range that best represents your normal sessions."],
+    ["Reach context", "Height can affect reach, positioning, and movement options."],
+    ["Your goal", "Keep feedback aligned with what you want from climbing."],
+    ["Your limiter", "Start with a hypothesis, then let your climbing confirm it."],
+  ];
+
   return (
-    <form onSubmit={handleSubmit}>
-      <p>
-        Step {step + 1} of {totalSteps}
-      </p>
+    <form className="onboarding-form" onSubmit={handleSubmit}>
+      <div className="onboarding-progress-row">
+        <span>Step {step + 1} of {totalSteps}</span>
+        <span>{stepMeta[step][0]}</span>
+      </div>
+      <div className="onboarding-progress" aria-label={`Step ${step + 1} of ${totalSteps}`}>
+        <span style={{ width: `${((step + 1) / totalSteps) * 100}%` }} />
+      </div>
 
-      {step === 0 && (
-        <div>
-          <h2>What should your coach call you?</h2>
+      <div className="onboarding-step">
+        <p className="onboarding-kicker">Build your coaching context</p>
 
-          <input
-            type="text"
-            placeholder="Your name"
-            value={displayName}
-            onChange={(event) => setDisplayName(event.target.value)}
-          />
-
-          <button
-            type="button"
-            onClick={handleNext}
-            disabled={!displayName.trim()}
-          >
-            Continue
-          </button>
-        </div>
-      )}
-
-      {step === 1 && (
-        <div>
-          <h2>How experienced are you with climbing?</h2>
-          <p>This helps your coach tailor feedback to your current level.</p>
-
-          {experienceOptions.map((option) => (
-            <button
-              key={option}
-              type="button"
-              onClick={() => {
-                setExperienceLevel(option);
-                handleNext();
-              }}
-            >
-              {option}
+        {step === 0 && (
+          <div className="onboarding-question">
+            <h2>What should your coach call you?</h2>
+            <p>{stepMeta[0][1]}</p>
+            <input
+              autoFocus
+              type="text"
+              placeholder="Your name"
+              value={displayName}
+              onChange={(event) => setDisplayName(event.target.value)}
+            />
+            <button className="onboarding-primary" type="button" onClick={handleNext} disabled={!displayName.trim()}>
+              Continue <span>→</span>
             </button>
-          ))}
+          </div>
+        )}
 
-          <button type="button" onClick={handleBack}>
-            Back
-          </button>
-        </div>
-      )}
+        {step === 1 && (
+          <div className="onboarding-question">
+            <h2>How experienced are you with climbing?</h2>
+            <p>{stepMeta[1][1]}</p>
+            <div className="onboarding-options onboarding-options-3">
+              {experienceOptions.map((option) => (
+                <button className={`onboarding-option ${experienceLevel === option ? "is-selected" : ""}`} key={option} type="button" onClick={() => { setExperienceLevel(option); handleNext(); }}>
+                  <span>{option}</span><b>→</b>
+                </button>
+              ))}
+            </div>
+            <button className="onboarding-back" type="button" onClick={handleBack}>← Back</button>
+          </div>
+        )}
 
-      {step === 2 && (
-        <div>
-          <h2>What grade do you usually climb?</h2>
-          <p>Choose the range that best represents your normal sessions.</p>
+        {step === 2 && (
+          <div className="onboarding-question">
+            <h2>What grade do you usually climb?</h2>
+            <p>{stepMeta[2][1]}</p>
+            <div className="onboarding-options onboarding-options-5">
+              {gradeOptions.map((option) => (
+                <button className={`onboarding-option ${typicalGrade === option ? "is-selected" : ""}`} key={option} type="button" onClick={() => { setTypicalGrade(option); handleNext(); }}>
+                  <span>{option}</span><b>→</b>
+                </button>
+              ))}
+            </div>
+            <button className="onboarding-back" type="button" onClick={handleBack}>← Back</button>
+          </div>
+        )}
 
-          {gradeOptions.map((option) => (
-            <button
-              key={option}
-              type="button"
-              onClick={() => {
-                setTypicalGrade(option);
-                handleNext();
-              }}
-            >
-              {option}
-            </button>
-          ))}
+        {step === 3 && (
+          <div className="onboarding-question">
+            <h2>How tall are you?</h2>
+            <p>{stepMeta[3][1]}</p>
+            <input autoFocus type="number" placeholder="Height in cm" value={heightCm} onChange={(event) => setHeightCm(event.target.value)} />
+            <button className="onboarding-primary" type="button" onClick={handleNext} disabled={!heightCm}>Continue <span>→</span></button>
+            <button className="onboarding-back" type="button" onClick={handleBack}>← Back</button>
+          </div>
+        )}
 
-          <button type="button" onClick={handleBack}>
-            Back
-          </button>
-        </div>
-      )}
+        {step === 4 && (
+          <div className="onboarding-question">
+            <h2>What do you want to achieve with your climbing?</h2>
+            <p>{stepMeta[4][1]}</p>
+            <div className="onboarding-options">
+              {goalOptions.map((option) => (
+                <button className={`onboarding-option ${goal === option ? "is-selected" : ""}`} key={option} type="button" onClick={() => { setGoal(option); handleNext(); }}>
+                  <span>{option}</span><b>→</b>
+                </button>
+              ))}
+            </div>
+            <button className="onboarding-back" type="button" onClick={handleBack}>← Back</button>
+          </div>
+        )}
 
-      {step === 3 && (
-        <div>
-          <h2>How tall are you?</h2>
-          <p>
-            Your height can affect reach, positioning, and movement options.
-          </p>
-
-          <input
-            type="number"
-            placeholder="Height in cm"
-            value={heightCm}
-            onChange={(event) => setHeightCm(event.target.value)}
-          />
-
-          <button type="button" onClick={handleNext} disabled={!heightCm}>
-            Continue
-          </button>
-
-          <button type="button" onClick={handleBack}>
-            Back
-          </button>
-        </div>
-      )}
-
-      {step === 4 && (
-        <div>
-          <h2>What do you want to achieve with your climbing?</h2>
-          <p>
-            Your coach will use this to keep feedback aligned with your goals.
-          </p>
-
-          {goalOptions.map((option) => (
-            <button
-              key={option}
-              type="button"
-              onClick={() => {
-                setGoal(option);
-                handleNext();
-              }}
-            >
-              {option}
-            </button>
-          ))}
-
-          <button type="button" onClick={handleBack}>
-            Back
-          </button>
-        </div>
-      )}
-
-      {step === 5 && (
-        <div>
-          <h2>What tends to hold you back most?</h2>
-          <p>
-            Your coach will treat this as context, then check whether it
-            actually appears in your climbing.
-          </p>
-
-          {weaknessOptions.map((option) => (
-            <button
-              key={option}
-              type="button"
-              onClick={() => setWeakness(option)}
-            >
-              {option}
-            </button>
-          ))}
-
-          <button type="button" onClick={handleBack}>
-            Back
-          </button>
-
-          <button type="submit" disabled={!weakness}>
-            Build my coaching profile
-          </button>
-        </div>
-      )}
+        {step === 5 && (
+          <div className="onboarding-question">
+            <h2>What tends to hold you back most?</h2>
+            <p>{stepMeta[5][1]}</p>
+            <div className="onboarding-options">
+              {weaknessOptions.map((option) => (
+                <button className={`onboarding-option ${weakness === option ? "is-selected" : ""}`} key={option} type="button" onClick={() => setWeakness(option)}>
+                  <span>{option}</span><b>→</b>
+                </button>
+              ))}
+            </div>
+            <div className="onboarding-actions">
+              <button className="onboarding-back" type="button" onClick={handleBack}>← Back</button>
+              <button className="onboarding-primary" type="submit" disabled={!weakness}>Build my coaching profile <span>→</span></button>
+            </div>
+          </div>
+        )}
+      </div>
     </form>
   );
 }
