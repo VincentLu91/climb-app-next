@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import ProfileForm from "./profile-form";
@@ -26,11 +27,34 @@ export default async function ProfilePage() {
   }
 
   return (
-    <main>
-      <h1>Your coaching profile</h1>
-      <p>Update these anytime as your climbing changes.</p>
+    <main className="profile-page">
+      <header className="profile-header">
+        <Link className="wordmark" href="/" aria-label="CLIMB/COACH home">
+          CLIMB<span>/</span>COACH
+        </Link>
+        <span className="profile-header-note">COACHING PROFILE / 01</span>
+      </header>
 
-      <ProfileForm userId={user.id} profile={profile} />
+      <section className="profile-layout" aria-labelledby="profile-title">
+        <div className="profile-intro">
+          <p className="eyebrow">YOUR COACHING PROFILE</p>
+          <h1 id="profile-title">
+            Keep the coach
+            <br />
+            <em>in sync.</em>
+          </h1>
+          <p className="profile-lede">
+            These details give every session useful context. Update them as
+            your climbing changes.
+          </p>
+          <div className="profile-note">
+            <span>↗</span>
+            <p>PERSONAL CONTEXT<br />USED ACROSS YOUR SESSIONS</p>
+          </div>
+        </div>
+
+        <ProfileForm userId={user.id} profile={profile} />
+      </section>
     </main>
   );
 }
