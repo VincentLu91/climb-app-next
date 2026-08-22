@@ -1,5 +1,5 @@
 import { createRequestClient, getRequestUser } from "@/lib/supabase/request";
-import { spendCredits } from "@/lib/subscription/entitlement";
+//import { spendCredits } from "@/lib/subscription/entitlement";
 
 export async function POST(request) {
   const { sessionId, message } = await request.json();
@@ -209,7 +209,7 @@ ${previousLearningContext}`,
     }),
   ];
 
-  const creditsSpent = await spendCredits({
+  /*const creditsSpent = await spendCredits({
     userId: user.id,
     amount: 1,
     reason: "chat_coaching",
@@ -223,7 +223,7 @@ ${previousLearningContext}`,
       },
       { status: 402 },
     );
-  }
+  }*/
 
   const cohereResponse = await fetch("https://api.cohere.com/v2/chat", {
     method: "POST",

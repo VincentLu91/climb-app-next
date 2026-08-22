@@ -471,10 +471,42 @@ input {
 }
 .composer {
   display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  border: 1px solid var(--line);
+  padding: 10px;
+}
+
+.composer-attachment-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.composer-attachment-row form {
+  margin: 0;
+}
+
+.composer-attachment-row label {
+  cursor: pointer;
+  color: var(--foreground);
+  font-size: 12px;
+}
+
+.composer-message-row {
+  display: flex;
   align-items: center;
   gap: 7px;
-  border: 1px solid var(--line);
-  padding: 7px;
+  width: 100%;
+}
+
+.composer-message-row input {
+  flex: 1;
+  min-width: 0;
 }
 .composer input {
   flex: 1;
