@@ -124,6 +124,37 @@ const UploadForm = forwardRef(function UploadForm(
       return;
     }
 
+    const { data: creditBalance, error: creditBalanceError } = await supabase
+      .from("credit_balances")
+      .select("subscription_credits, topup_credits")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (!creditBalanceError) {
+      const totalCredits =
+        (creditBalance?.subscription_credits ?? 0) +
+        (creditBalance?.topup_credits ?? 0);
+
+      const isVideo = file.type.startsWith("video/");
+      const requiredCredits = isVideo ? 2 : 1;
+
+      if (totalCredits < requiredCredits) {
+        alert(
+          `${isVideo ? "Video coaching" : "Photo analysis"} requires ${requiredCredits} ${
+            requiredCredits === 1 ? "credit" : "credits"
+          }. You have ${totalCredits} remaining.`,
+        );
+
+        router.push(
+          isVideo
+            ? "/pricing?source=video_analysis"
+            : "/pricing?source=image_analysis",
+        );
+
+        return;
+      }
+    }
+
     const { count: existingUploadCount, error: existingUploadCountError } =
       await supabase
         .from("uploads")
@@ -382,6 +413,8 @@ const UploadForm = forwardRef(function UploadForm(
         return;
       }
 
+      window.dispatchEvent(new Event("credit-balance-refresh"));
+
       console.log("fal.ai submission:", analyzeData);
 
       let completedAnalysis = null;
@@ -490,6 +523,7 @@ const UploadForm = forwardRef(function UploadForm(
         console.error("Progress update failed:", progressData);
       } else {
         console.log("Progress state:", progressData.updatedState);
+        window.dispatchEvent(new Event("credit-balance-refresh"));
 
         posthog.capture(
           "progression_state_updated",
@@ -654,6 +688,8 @@ Give a concise response that helps the climber decide what to work on or what to
     console.log("Created analysis row:", analysisRow);
     console.log("Signed media URL:", signedUrlData.signedUrl);
 
+    window.dispatchEvent(new Event("credit-balance-refresh"));
+
     alert("Upload and analysis record saved.");
   }
 
@@ -710,13 +746,16 @@ Give a concise response that helps the climber decide what to work on or what to
           />
 
           {composerMode ? (
-            <label
-              htmlFor={`climbing-media-${
-                coachingSessionId ?? "new"
-              }-${attemptNumber}`}
-            >
-              {file ? file.name : "Attach photo/video"}
-            </label>
+            <>
+              <label
+                htmlFor={`climbing-media-${
+                  coachingSessionId ?? "new"
+                }-${attemptNumber}`}
+              >
+                {file ? file.name : "Attach photo/video"}
+              </label>
+              <br />
+            </>
           ) : (
             file && <p>Selected: {file.name}</p>
           )}
