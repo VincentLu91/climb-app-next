@@ -30,10 +30,12 @@ export default async function Home() {
 
   if (user) {
     return (
-      <main className="account-home">
+      <>
         <AuthenticatedNavbar />
-        <section className="account-card"><p className="eyebrow">YOUR COACHING ACCOUNT</p><h1>Keep working the <em>next attempt.</em></h1><div className="credit-row"><strong>{totalCredits}</strong><span>total credits<br /><small>{subscriptionCredits} subscription · {topupCredits} top-up</small></span></div><div className="account-actions"><Link href="/upload" className="primary-button">Start a session <span>↗</span></Link><LogoutButton /></div></section>
-      </main>
+        <main className="account-home">
+          <section className="account-card"><p className="eyebrow">YOUR COACHING ACCOUNT</p><h1>Keep working the <em>next attempt.</em></h1><div className="credit-row"><strong>{totalCredits}</strong><span>total credits<br /><small>{subscriptionCredits} subscription · {topupCredits} top-up</small></span></div><div className="account-actions"><Link href="/upload" className="primary-button">Start a session <span>↗</span></Link><LogoutButton /></div></section>
+        </main>
+      </>
     );
   }
 
