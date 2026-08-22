@@ -28,9 +28,10 @@ function buildAttempts(messages) {
     }
 
     if (isUser) {
-      // Any intervening user message, including a supporting image, breaks the
-      // chronological link to the pending video attempt.
-      waitingAttempt = null;
+      // Text questions can happen while the attempt is pending. Supporting
+      // images are a new context item, so they cancel the pending association.
+      const isSupportingImage = item.attachment?.signedUrl && item.attachment.media_type === "image";
+      if (isSupportingImage) waitingAttempt = null;
       continue;
     }
 
