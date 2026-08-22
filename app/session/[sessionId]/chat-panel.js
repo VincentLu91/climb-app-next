@@ -7,24 +7,42 @@ import { createClient } from "@/lib/supabase/client";
 import UploadForm from "@/app/upload/upload-form";
 
 function buildAttempts(messages) {
-  const videoMessages = messages.filter(
-    (item) => item.attachment?.signedUrl && item.attachment.media_type === "video",
-  );
+  const attempts = [];
+  let waitingAttempt = null;
 
-  return videoMessages.map((item, index) => ({
-    attempt: index + 1,
-    media: item.attachment,
-    note: item.message,
-    // Coach replies are only part of an attempt when the persisted message
-    // explicitly points to that upload. Never infer the relationship from order.
-    coach:
-      messages.find(
-        (candidate) =>
-          candidate.sender !== "user" &&
-          candidate.uploadId &&
-          candidate.uploadId === item.uploadId,
-      ) ?? null,
-  }));
+  for (const item of messages) {
+    const isUser = item.sender?.toLowerCase?.() === "user";
+    const isVideo = item.attachment?.signedUrl && item.attachment.media_type === "video";
+
+    if (isVideo) {
+      const attempt = {
+        attempt: attempts.length + 1,
+        media: item.attachment,
+        note: item.message,
+        coach: null,
+      };
+      attempts.push(attempt);
+      // A response may be associated only while this attempt is still waiting.
+      waitingAttempt = attempt;
+      continue;
+    }
+
+    if (isUser) {
+      // Any intervening user message, including a supporting image, breaks the
+      // chronological link to the pending video attempt.
+      waitingAttempt = null;
+      continue;
+    }
+
+    if (waitingAttempt) {
+      // Existing coach rows do not always carry uploadId. The first coach row
+      // immediately following an attempt is the conservative association.
+      waitingAttempt.coach = item;
+      waitingAttempt = null;
+    }
+  }
+
+  return attempts;
 }
 
 export default function ChatPanel({ coachingSessionId, userId, initialMessages = [], initialProgressState = null }) {
@@ -144,7 +162,7 @@ export default function ChatPanel({ coachingSessionId, userId, initialMessages =
       <aside className="coach-sidebar">
         <div className="sidebar-heading"><div><span className="eyebrow">COACHING THREAD</span><h2>Talk it through</h2></div><span className="coach-pulse" /></div>
         <p className="sidebar-copy">Ask a question between attempts. Keep the loop moving.</p>
-        <div className="thread-messages">{messages.map((item, index) => <div className={`thread-message ${item.sender === "user" ? "is-user" : "is-coach"}`} key={item.id ?? index}><span>{item.sender === "user" ? "YOU" : "COACH"}</span>{item.message && <p>{item.message}</p>}{item.attachment?.signedUrl && item.attachment.media_type === "image" && <img className="thread-attachment" src={item.attachment.signedUrl} alt={item.message || "Route or wall context"} />}</div>)}{typing && <div className="typing">Coach is thinking<span>...</span></div>}<div ref={endRef} /></div>
+        <div className="thread-messages">{messages.filter((item) => !(item.attachment?.signedUrl && item.attachment.media_type === "video")).map((item, index) => <div className={`thread-message ${item.sender === "user" ? "is-user" : "is-coach"}`} key={item.id ?? index}><span>{item.sender === "user" ? "YOU" : "COACH"}</span>{item.message && <p>{item.message}</p>}{item.attachment?.signedUrl && item.attachment.media_type === "image" && <img className="thread-attachment" src={item.attachment.signedUrl} alt={item.message || "Route or wall context"} />}</div>)}{typing && <div className="typing">Coach is thinking<span>...</span></div>}<div ref={endRef} /></div>
         <div className="composer"><UploadForm ref={uploadFormRef} initialCoachingSessionId={coachingSessionId} composerMode messageText={inputValue} onAttachmentSent={() => setInputValue("")} /><input value={inputValue} onChange={(event) => setInputValue(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.nativeEvent.isComposing && event.keyCode !== 229) send(); }} placeholder="Ask your coach..." aria-label="Ask your coach" /><button type="button" onClick={send} aria-label="Send message">Send</button></div>
         <button className="finish-button" type="button" onClick={finishProblem} disabled={finishing}>{finishing ? "Finishing..." : "Finish problem"}<span>→</span></button>
       </aside>
