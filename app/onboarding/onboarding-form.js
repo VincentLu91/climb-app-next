@@ -19,6 +19,13 @@ const goalOptions = [
   "Become a stronger all-around climber",
 ];
 
+const climbingStyleOptions = [
+  "Bouldering",
+  "Sport climbing",
+  "Trad climbing",
+  "Indoor climbing",
+];
+
 const weaknessOptions = [
   "Body positioning",
   "Footwork",
@@ -34,8 +41,9 @@ export default function OnboardingForm({ userId }) {
   const [heightCm, setHeightCm] = useState("");
   const [experienceLevel, setExperienceLevel] = useState("");
   const [typicalGrade, setTypicalGrade] = useState("");
-  const [goal, setGoal] = useState("");
-  const [weakness, setWeakness] = useState("");
+  const [climbingStyles, setClimbingStyles] = useState([]);
+  const [goals, setGoals] = useState([]);
+  const [weaknesses, setWeaknesses] = useState([]);
 
   const [step, setStep] = useState(0);
 
