@@ -27,29 +27,35 @@ export default async function ProfilePage() {
   }
 
   return (
-    <main className="profile-page">
+    <>
       <AuthenticatedNavbar />
 
-      <section className="profile-layout" aria-labelledby="profile-title">
-        <div className="profile-intro">
-          <p className="eyebrow">YOUR COACHING PROFILE</p>
-          <h1 id="profile-title">
-            Keep the coach
-            <br />
-            <em>in sync.</em>
-          </h1>
-          <p className="profile-lede">
-            These details give every session useful context. Update them as
-            your climbing changes.
-          </p>
-          <div className="profile-note">
-            <span>↗</span>
-            <p>PERSONAL CONTEXT<br />USED ACROSS YOUR SESSIONS</p>
+      <main className="profile-page">
+        <section className="profile-layout" aria-labelledby="profile-title">
+          <div className="profile-intro">
+            <p className="eyebrow">YOUR COACHING PROFILE</p>
+            <h1 id="profile-title">
+              Keep the coach
+              <br />
+              <em>in sync.</em>
+            </h1>
+            <p className="profile-lede">
+              These details give every session useful context. Update them as
+              your climbing changes.
+            </p>
+            <div className="profile-note">
+              <span>↗</span>
+              <p>
+                PERSONAL CONTEXT
+                <br />
+                USED ACROSS YOUR SESSIONS
+              </p>
+            </div>
           </div>
-        </div>
 
-        <ProfileForm userId={user.id} profile={profile} />
-      </section>
-    </main>
+          <ProfileForm userId={user.id} profile={profile} />
+        </section>
+      </main>
+    </>
   );
 }
