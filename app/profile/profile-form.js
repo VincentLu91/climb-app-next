@@ -101,83 +101,97 @@ export default function ProfileForm({ userId, profile }) {
   }
 
   return (
-    <form onSubmit={handleSubmit}>
-      <label>
-        Name
-        <input
-          type="text"
-          value={displayName}
-          onChange={(event) => setDisplayName(event.target.value)}
-        />
-      </label>
+    <form className="profile-form" onSubmit={handleSubmit}>
+      <div className="profile-form-heading">
+        <div>
+          <p className="eyebrow">SESSION CONTEXT</p>
+          <h2>What should the coach know?</h2>
+        </div>
+        <span className="profile-form-index">EDIT / 06</span>
+      </div>
 
-      <label>
-        Height (cm)
-        <input
-          type="number"
-          value={heightCm}
-          onChange={(event) => setHeightCm(event.target.value)}
-        />
-      </label>
+      <div className="profile-fields">
+        <label className="profile-field profile-field-wide">
+          <span>Name</span>
+          <input
+            type="text"
+            value={displayName}
+            onChange={(event) => setDisplayName(event.target.value)}
+          />
+        </label>
 
-      <label>
-        Experience level
-        <select
-          value={experienceLevel}
-          onChange={(event) => setExperienceLevel(event.target.value)}
-        >
-          {experienceOptions.map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
-        </select>
-      </label>
+        <label className="profile-field">
+          <span>Height (cm)</span>
+          <input
+            type="number"
+            value={heightCm}
+            onChange={(event) => setHeightCm(event.target.value)}
+          />
+        </label>
 
-      <label>
-        Typical grade
-        <select
-          value={typicalGrade}
-          onChange={(event) => setTypicalGrade(event.target.value)}
-        >
-          {gradeOptions.map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
-        </select>
-      </label>
+        <label className="profile-field">
+          <span>Experience level</span>
+          <select
+            value={experienceLevel}
+            onChange={(event) => setExperienceLevel(event.target.value)}
+          >
+            {experienceOptions.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </label>
 
-      <label>
-        Main goal
-        <select value={goal} onChange={(event) => setGoal(event.target.value)}>
-          {goalOptions.map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
-        </select>
-      </label>
+        <label className="profile-field">
+          <span>Typical grade</span>
+          <select
+            value={typicalGrade}
+            onChange={(event) => setTypicalGrade(event.target.value)}
+          >
+            {gradeOptions.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </label>
 
-      <label>
-        Recurring weakness
-        <select
-          value={weakness}
-          onChange={(event) => setWeakness(event.target.value)}
-        >
-          {weaknessOptions.map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
-        </select>
-      </label>
+        <label className="profile-field">
+          <span>Main goal</span>
+          <select value={goal} onChange={(event) => setGoal(event.target.value)}>
+            {goalOptions.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </label>
 
-      <button type="submit">Save changes</button>
+        <label className="profile-field profile-field-wide">
+          <span>Recurring weakness</span>
+          <select
+            value={weakness}
+            onChange={(event) => setWeakness(event.target.value)}
+          >
+            {weaknessOptions.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
 
-      <button type="button" onClick={handleManageBilling}>
-        Manage billing
-      </button>
+      <div className="profile-form-actions">
+        <button className="profile-save" type="submit">
+          <span>Save changes</span>
+          <span aria-hidden="true">→</span>
+        </button>
+        <button className="profile-billing" type="button" onClick={handleManageBilling}>
+          Manage billing <span aria-hidden="true">↗</span>
+        </button>
+      </div>
     </form>
   );
 }
