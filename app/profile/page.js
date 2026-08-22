@@ -32,7 +32,7 @@ export default async function ProfilePage() {
         <Link className="wordmark" href="/" aria-label="CLIMB/COACH home">
           CLIMB<span>/</span>COACH
         </Link>
-        <span className="profile-header-note">COACHING PROFILE / 01</span>
+        <nav className="profile-header-note" aria-label="Account navigation"><Link href="/">Home</Link><Link href="/upload">New problem</Link><span>COACHING PROFILE / 01</span></nav>
       </header>
 
       <section className="profile-layout" aria-labelledby="profile-title">

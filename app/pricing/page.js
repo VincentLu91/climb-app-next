@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import posthog from "posthog-js";
 
@@ -51,13 +52,15 @@ export default function PricingPage() {
   return (
     <main className="pricing-page">
       <header className="pricing-header">
-        <a className="wordmark" href="/">
+        <Link className="wordmark" href="/">
           CLIMB<span>/</span>COACH
-        </a>
-        <div className="pricing-header-actions">
+        </Link>
+        <nav className="pricing-header-actions" aria-label="Account navigation">
+          <Link href="/">Home</Link>
           <span>ADAPTIVE COACHING</span>
+          <a href="/upload">New problem</a>
           <a href="/profile">Profile</a>
-        </div>
+        </nav>
       </header>
 
       <section className="pricing-hero">

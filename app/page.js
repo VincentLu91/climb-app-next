@@ -30,7 +30,7 @@ export default async function Home() {
   if (user) {
     return (
       <main className="account-home">
-        <header className="landing-header"><Link href="/" className="wordmark">CLIMB<span>/</span>COACH</Link><div className="header-actions"><span>{user.email}</span><Link href="/upload" className="header-cta">Start climbing</Link></div></header>
+        <header className="landing-header"><Link href="/" className="wordmark">CLIMB<span>/</span>COACH</Link><nav className="header-actions" aria-label="Account navigation"><Link href="/upload" className="header-cta">Start climbing</Link><Link href="/profile">Profile</Link><span>{user.email}</span></nav></header>
         <section className="account-card"><p className="eyebrow">YOUR COACHING ACCOUNT</p><h1>Keep working the <em>next attempt.</em></h1><div className="credit-row"><strong>{totalCredits}</strong><span>total credits<br /><small>{subscriptionCredits} subscription · {topupCredits} top-up</small></span></div><div className="account-actions"><Link href="/upload" className="primary-button">Start a session <span>↗</span></Link><LogoutButton /></div></section>
       </main>
     );

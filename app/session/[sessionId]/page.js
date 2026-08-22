@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import ChatPanel from "./chat-panel";
@@ -86,10 +87,11 @@ export default async function CoachingSessionPage({ params }) {
     <main className="session-shell">
       <header className="session-header">
         <a className="wordmark" href="/upload">CLIMB<span>/</span>COACH</a>
-        <div className="header-actions">
-          <a href="/profile">Profile</a>
+        <nav className="header-actions" aria-label="Account navigation">
+          <Link href="/">Home</Link>
           <a className="quiet-link" href="/upload">New problem</a>
-        </div>
+          <a href="/profile">Profile</a>
+        </nav>
       </header>
       <div className="session-intro">
         <div>

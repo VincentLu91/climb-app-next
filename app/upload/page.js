@@ -68,10 +68,11 @@ export default async function UploadPage() {
             CLIMB<span>/</span>COACH
           </a>
           <nav className="header-actions" aria-label="Account navigation">
-            <a href="/profile">Profile</a>
+            <Link href="/">Home</Link>
             <a className="quiet-link" href="/upload">
               New problem
             </a>
+            <a href="/profile">Profile</a>
           </nav>
         </header>
 
