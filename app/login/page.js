@@ -49,7 +49,10 @@ export default function LoginPage() {
     router.refresh();
   }
 
-  async function handleSignUp() {
+  async function handleSignUp(event) {
+    event.preventDefault();
+    event.stopPropagation();
+
     const supabase = createClient();
 
     const { error } = await supabase.auth.signUp({
