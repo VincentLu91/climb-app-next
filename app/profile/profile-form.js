@@ -97,6 +97,11 @@ export default function ProfileForm({ userId, profile }) {
       return;
     }
 
+    if (data.error?.includes("No Stripe customer found")) {
+      window.location.href = "/pricing";
+      return;
+    }
+
     alert(data.error || "Unable to open billing portal.");
   }
 
