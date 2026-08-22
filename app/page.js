@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "../lib/supabase/server";
 import LogoutButton from "./logout-button";
+import AuthenticatedNavbar from "@/components/authenticated-navbar";
 
 const loopSteps = [
   ["01", "ATTEMPT", "Record the move as it happens."],
@@ -29,10 +30,12 @@ export default async function Home() {
 
   if (user) {
     return (
-      <main className="account-home">
-        <header className="landing-header"><Link href="/" className="wordmark">CLIMB<span>/</span>COACH</Link><div className="header-actions"><span>{user.email}</span><Link href="/upload" className="header-cta">Start climbing</Link></div></header>
-        <section className="account-card"><p className="eyebrow">YOUR COACHING ACCOUNT</p><h1>Keep working the <em>next attempt.</em></h1><div className="credit-row"><strong>{totalCredits}</strong><span>total credits<br /><small>{subscriptionCredits} subscription · {topupCredits} top-up</small></span></div><div className="account-actions"><Link href="/upload" className="primary-button">Start a session <span>↗</span></Link><LogoutButton /></div></section>
-      </main>
+      <>
+        <AuthenticatedNavbar />
+        <main className="account-home">
+          <section className="account-card"><p className="eyebrow">YOUR COACHING ACCOUNT</p><h1>Keep working the <em>next attempt.</em></h1><div className="credit-row"><strong>{totalCredits}</strong><span>total credits<br /><small>{subscriptionCredits} subscription · {topupCredits} top-up</small></span></div><div className="account-actions"><Link href="/upload" className="primary-button">Start a session <span>↗</span></Link><LogoutButton /></div></section>
+        </main>
+      </>
     );
   }
 
