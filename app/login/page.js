@@ -73,25 +73,64 @@ export default function LoginPage() {
   }
 
   return (
-    <form onSubmit={handleLogin}>
-      <input
-        type="email"
-        placeholder="Email"
-        value={email}
-        onChange={(event) => setEmail(event.target.value)}
-      />
+    <main className="auth-page">
+      <header className="auth-header">
+        <a className="wordmark" href="/" aria-label="CLIMB/COACH home">
+          CLIMB<span>/COACH</span>
+        </a>
+        <span className="auth-header-note">ADAPTIVE CLIMBING COACHING</span>
+      </header>
 
-      <input
-        type="password"
-        placeholder="Password"
-        value={password}
-        onChange={(event) => setPassword(event.target.value)}
-      />
+      <section className="auth-layout" aria-labelledby="login-title">
+        <div className="auth-intro">
+          <p className="eyebrow">YOUR NEXT MOVE STARTS HERE</p>
+          <h1 id="login-title">Keep climbing.<br /><em>Keep adapting.</em></h1>
+          <p className="auth-lede">
+            Return to your coaching loop and pick up where your last attempt left off.
+          </p>
+          <div className="auth-loop" aria-label="Adaptive coaching loop">
+            <span>ATTEMPT</span><i /> <span>NOTICE</span><i /> <span>ADAPT</span>
+          </div>
+        </div>
 
-      <button type="submit">Log in</button>
-      <button type="button" onClick={handleSignUp}>
-        Sign up
-      </button>
-    </form>
+        <div className="auth-panel">
+          <div className="auth-panel-heading">
+            <p className="eyebrow">WELCOME BACK</p>
+            <span className="auth-status">01 / 01</span>
+          </div>
+          <h2>Log in to your coach</h2>
+          <p className="auth-panel-copy">Your sessions, progress, and next experiment are waiting.</p>
+
+          <form className="auth-form" onSubmit={handleLogin}>
+            <label htmlFor="email">Email</label>
+            <input
+              id="email"
+              type="email"
+              placeholder="you@example.com"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              autoComplete="email"
+            />
+
+            <label htmlFor="password">Password</label>
+            <input
+              id="password"
+              type="password"
+              placeholder="Enter your password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              autoComplete="current-password"
+            />
+
+            <button className="auth-primary" type="submit">
+              <span>Log in</span><span aria-hidden="true">→</span>
+            </button>
+            <button className="auth-signup" type="button" onClick={handleSignUp}>
+              New to CLIMB/COACH? <strong>Sign up</strong>
+            </button>
+          </form>
+        </div>
+      </section>
+    </main>
   );
 }
