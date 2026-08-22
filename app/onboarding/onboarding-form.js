@@ -19,13 +19,6 @@ const goalOptions = [
   "Become a stronger all-around climber",
 ];
 
-const climbingStyleOptions = [
-  "Bouldering",
-  "Sport climbing",
-  "Trad climbing",
-  "Indoor climbing",
-];
-
 const weaknessOptions = [
   "Body positioning",
   "Footwork",
