@@ -51,7 +51,6 @@ export default function LoginPage() {
 
   async function handleSignUp(event) {
     event.preventDefault();
-    event.stopPropagation();
 
     const supabase = createClient();
 
