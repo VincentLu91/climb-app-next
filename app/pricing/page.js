@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import AuthenticatedNavbar from "@/components/authenticated-navbar";
 import posthog from "posthog-js";
 
 export default function PricingPage() {
@@ -50,15 +51,7 @@ export default function PricingPage() {
 
   return (
     <main className="pricing-page">
-      <header className="pricing-header">
-        <a className="wordmark" href="/">
-          CLIMB<span>/</span>COACH
-        </a>
-        <div className="pricing-header-actions">
-          <span>ADAPTIVE COACHING</span>
-          <a href="/profile">Profile</a>
-        </div>
-      </header>
+      <AuthenticatedNavbar />
 
       <section className="pricing-hero">
         <div>

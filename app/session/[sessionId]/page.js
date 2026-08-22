@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import ChatPanel from "./chat-panel";
 import ShareClipButton from "./share-clip-button";
+import AuthenticatedNavbar from "@/components/authenticated-navbar";
 
 export default async function CoachingSessionPage({ params }) {
   const { sessionId } = await params;
@@ -84,13 +85,7 @@ export default async function CoachingSessionPage({ params }) {
 
   return (
     <main className="session-shell">
-      <header className="session-header">
-        <a className="wordmark" href="/upload">CLIMB<span>/</span>COACH</a>
-        <div className="header-actions">
-          <a href="/profile">Profile</a>
-          <a className="quiet-link" href="/upload">New problem</a>
-        </div>
-      </header>
+      <AuthenticatedNavbar />
       <div className="session-intro">
         <div>
           <p className="eyebrow">LIVE COACHING SESSION</p>
