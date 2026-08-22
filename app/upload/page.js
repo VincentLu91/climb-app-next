@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import UploadForm from "./upload-form";
 import StartSessionButton from "./start-session-button";
 import CheckoutSuccessTracker from "./checkout-success-tracker";
+import AuthenticatedNavbar from "@/components/authenticated-navbar";
 
 export default async function UploadPage() {
   const supabase = await createClient();
@@ -63,18 +64,7 @@ export default async function UploadPage() {
       <CheckoutSuccessTracker />
 
       <main className="upload-shell">
-        <header className="session-header upload-header">
-          <a className="wordmark" href="/upload">
-            CLIMB<span>/</span>COACH
-          </a>
-          <nav className="header-actions" aria-label="Account navigation">
-            <Link href="/">Home</Link>
-            <a className="quiet-link" href="/upload">
-              New problem
-            </a>
-            <a href="/profile">Profile</a>
-          </nav>
-        </header>
+        <AuthenticatedNavbar />
 
         <section className="upload-hero" aria-labelledby="upload-title">
           <div className="upload-hero-copy">

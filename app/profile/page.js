@@ -1,7 +1,7 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import ProfileForm from "./profile-form";
+import AuthenticatedNavbar from "@/components/authenticated-navbar";
 
 export default async function ProfilePage() {
   const supabase = await createClient();
@@ -28,12 +28,7 @@ export default async function ProfilePage() {
 
   return (
     <main className="profile-page">
-      <header className="profile-header">
-        <Link className="wordmark" href="/" aria-label="CLIMB/COACH home">
-          CLIMB<span>/</span>COACH
-        </Link>
-        <nav className="profile-header-note" aria-label="Account navigation"><Link href="/">Home</Link><Link href="/upload">New problem</Link><span>COACHING PROFILE / 01</span></nav>
-      </header>
+      <AuthenticatedNavbar />
 
       <section className="profile-layout" aria-labelledby="profile-title">
         <div className="profile-intro">

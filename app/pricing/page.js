@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
+import AuthenticatedNavbar from "@/components/authenticated-navbar";
 import posthog from "posthog-js";
 
 export default function PricingPage() {
@@ -51,17 +51,7 @@ export default function PricingPage() {
 
   return (
     <main className="pricing-page">
-      <header className="pricing-header">
-        <Link className="wordmark" href="/">
-          CLIMB<span>/</span>COACH
-        </Link>
-        <nav className="pricing-header-actions" aria-label="Account navigation">
-          <Link href="/">Home</Link>
-          <span>ADAPTIVE COACHING</span>
-          <a href="/upload">New problem</a>
-          <a href="/profile">Profile</a>
-        </nav>
-      </header>
+      <AuthenticatedNavbar />
 
       <section className="pricing-hero">
         <div>

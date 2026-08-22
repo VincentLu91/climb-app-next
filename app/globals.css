@@ -5,6 +5,12 @@
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--background); color: var(--foreground); font-family: Arial, Helvetica, sans-serif; }
 a { color: inherit; text-decoration: none; }
+.authenticated-navbar { position:sticky; top:0; z-index:10; display:flex; align-items:center; justify-content:space-between; gap:24px; width:100%; min-height:64px; padding:0 0 20px; background:color-mix(in srgb, var(--background) 82%, transparent); border-bottom:1px solid var(--line); backdrop-filter:blur(14px); }
+.authenticated-navbar-links { display:flex; align-items:center; justify-content:flex-end; gap:clamp(12px, 2.4vw, 28px); color:var(--muted); font-size:13px; white-space:nowrap; }
+.authenticated-navbar-links a { padding:8px 0; transition:color .2s ease; }
+.authenticated-navbar-links a:hover, .authenticated-navbar-links a[aria-current="page"] { color:var(--foreground); }
+.authenticated-navbar-links a[aria-current="page"] { text-decoration:underline; text-decoration-color:var(--accent); text-decoration-thickness:2px; text-underline-offset:6px; }
+@media (max-width:620px) { .authenticated-navbar { gap:16px; min-height:58px; padding-bottom:16px; }.authenticated-navbar .wordmark { flex:none; font-size:12px; }.authenticated-navbar-links { gap:10px; font-size:11px; }.authenticated-navbar-links a { padding:6px 0; } }
 button, input { font: inherit; }
 .session-shell { max-width: 1320px; margin: auto; padding: 28px 40px 64px; }
 .session-header { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); padding-bottom: 22px; }
