@@ -7,33 +7,24 @@ import { createClient } from "@/lib/supabase/client";
 import UploadForm from "@/app/upload/upload-form";
 
 function buildAttempts(messages) {
-  const attempts = [];
-  let lastAttachmentType = null;
+  const videoMessages = messages.filter(
+    (item) => item.attachment?.signedUrl && item.attachment.media_type === "video",
+  );
 
-  messages.forEach((item) => {
-    // Only videos represent climbing attempts. Images are route or wall context
-    // and stay in the coaching thread below.
-    if (item.attachment?.signedUrl) {
-      lastAttachmentType = item.attachment.media_type;
-
-      if (item.attachment.media_type === "video") {
-        attempts.push({
-          attempt: attempts.length + 1,
-          media: item.attachment,
-          note: item.message,
-          coach: null,
-        });
-      }
-    } else if (
-      item.sender !== "user" &&
-      attempts.length &&
-      lastAttachmentType !== "image"
-    ) {
-      attempts[attempts.length - 1].coach = item;
-    }
-  });
-
-  return attempts;
+  return videoMessages.map((item, index) => ({
+    attempt: index + 1,
+    media: item.attachment,
+    note: item.message,
+    // Coach replies are only part of an attempt when the persisted message
+    // explicitly points to that upload. Never infer the relationship from order.
+    coach:
+      messages.find(
+        (candidate) =>
+          candidate.sender !== "user" &&
+          candidate.uploadId &&
+          candidate.uploadId === item.uploadId,
+      ) ?? null,
+  }));
 }
 
 export default function ChatPanel({ coachingSessionId, userId, initialMessages = [], initialProgressState = null }) {
@@ -56,7 +47,7 @@ export default function ChatPanel({ coachingSessionId, userId, initialMessages =
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
   useEffect(() => {
-    const onCoach = (event) => { const item = event.detail; if (item?.message) setMessages((current) => [...current, { id: item.id, message: item.message, sender: "ChatGPT", coachingHelpful: item.coachingHelpful ?? null }]); };
+    const onCoach = (event) => { const item = event.detail; if (item?.message) setMessages((current) => [...current, { id: item.id, message: item.message, sender: "ChatGPT", uploadId: item.uploadId, coachingHelpful: item.coachingHelpful ?? null }]); };
     const onAttachment = (event) => { const item = event.detail; if (item?.attachment?.signedUrl) setMessages((current) => [...current, { message: item.message, sender: "user", uploadId: item.uploadId, attachment: item.attachment }]); };
     const onProgress = (event) => { if (event.detail) setProgressState(event.detail); };
     window.addEventListener("climbing-coach-message", onCoach); window.addEventListener("climbing-user-attachment", onAttachment); window.addEventListener("climbing-progress-update", onProgress);
@@ -139,10 +130,10 @@ export default function ChatPanel({ coachingSessionId, userId, initialMessages =
                 <div className="attempt-heading"><div><span className="attempt-label">ATTEMPT {attempt.attempt}</span><span className="attempt-status">{index === attempts.length - 1 ? "Latest read" : "Reviewed"}</span></div></div>
                 {attempt.media.media_type === "video" ? <video className="attempt-media" src={attempt.media.signedUrl} controls /> : <img className="attempt-media" src={attempt.media.signedUrl} alt={attempt.note || `Climbing attempt ${attempt.attempt}`} />}
                 {attempt.note && attempt.note !== `Attempt ${attempt.attempt}` && <p className="attempt-caption">{attempt.note}</p>}
-                <div className="insight-grid">
-                  <div><span className="insight-label">COACH NOTICED</span><p>{attempt.coach?.message || "Your coach is reviewing this attempt..."}</p></div>
+                {(attempt.coach || index === 0 || (index === attempts.length - 1 && currentProgressNote)) && <div className="insight-grid">
+                  {attempt.coach && <div><span className="insight-label">COACH NOTICED</span><p>{attempt.coach.message}</p></div>}
                   {(index === 0 || (index === attempts.length - 1 && currentProgressNote)) && <div><span className="insight-label">WHAT CHANGED</span><p>{index === 0 ? "Baseline attempt." : currentProgressNote}</p></div>}
-                </div>
+                </div>}
                 {attempt.coach && <div className="coach-feedback"><div>{index === attempts.length - 1 && currentExperiment && <><span className="insight-label">NEXT EXPERIMENT</span><strong>{currentExperiment}</strong></>}</div><div className="feedback-buttons"><button type="button" onClick={() => saveCoachingFeedback(attempt.coach.id, true)} disabled={savingFeedbackMessageId === attempt.coach.id}>{attempt.coach.coachingHelpful === true ? "Helpful ✓" : "Helpful"}</button><button type="button" onClick={() => saveCoachingFeedback(attempt.coach.id, false)} disabled={savingFeedbackMessageId === attempt.coach.id}>{attempt.coach.coachingHelpful === false ? "Not quite" : "Feedback"}</button></div></div>}
               </div>
             </article>
@@ -153,7 +144,7 @@ export default function ChatPanel({ coachingSessionId, userId, initialMessages =
       <aside className="coach-sidebar">
         <div className="sidebar-heading"><div><span className="eyebrow">COACHING THREAD</span><h2>Talk it through</h2></div><span className="coach-pulse" /></div>
         <p className="sidebar-copy">Ask a question between attempts. Keep the loop moving.</p>
-        <div className="thread-messages">{messages.map((item, index) => <div className={`thread-message ${item.sender === "user" ? "is-user" : "is-coach"}`} key={item.id ?? index}><span>{item.sender === "user" ? "YOU" : "COACH"}</span>{item.message && <p>{item.message}</p>}{item.attachment?.signedUrl && item.attachment.media_type === "image" && <img className="thread-attachment" src={item.attachment.signedUrl} alt={item.message || "Route or wall context"} />}{item.attachment?.signedUrl && item.attachment.media_type === "video" && <video className="thread-attachment" src={item.attachment.signedUrl} controls aria-label="Climbing attempt video" />}</div>)}{typing && <div className="typing">Coach is thinking<span>...</span></div>}<div ref={endRef} /></div>
+        <div className="thread-messages">{messages.map((item, index) => <div className={`thread-message ${item.sender === "user" ? "is-user" : "is-coach"}`} key={item.id ?? index}><span>{item.sender === "user" ? "YOU" : "COACH"}</span>{item.message && <p>{item.message}</p>}{item.attachment?.signedUrl && item.attachment.media_type === "image" && <img className="thread-attachment" src={item.attachment.signedUrl} alt={item.message || "Route or wall context"} />}</div>)}{typing && <div className="typing">Coach is thinking<span>...</span></div>}<div ref={endRef} /></div>
         <div className="composer"><UploadForm ref={uploadFormRef} initialCoachingSessionId={coachingSessionId} composerMode messageText={inputValue} onAttachmentSent={() => setInputValue("")} /><input value={inputValue} onChange={(event) => setInputValue(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.nativeEvent.isComposing && event.keyCode !== 229) send(); }} placeholder="Ask your coach..." aria-label="Ask your coach" /><button type="button" onClick={send} aria-label="Send message">Send</button></div>
         <button className="finish-button" type="button" onClick={finishProblem} disabled={finishing}>{finishing ? "Finishing..." : "Finish problem"}<span>→</span></button>
       </aside>
