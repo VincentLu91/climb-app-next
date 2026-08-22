@@ -3,459 +3,170 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import posthog from "posthog-js";
-
 import { createClient } from "@/lib/supabase/client";
 import UploadForm from "@/app/upload/upload-form";
 
-export default function ChatPanel({
-  coachingSessionId,
-  userId,
-  initialMessages = [],
-  initialProgressState = null,
-}) {
-  const router = useRouter();
+function buildAttempts(messages) {
+  const attempts = [];
+  let waitingAttempt = null;
 
+  for (const item of messages) {
+    const isUser = item.sender?.toLowerCase?.() === "user";
+    const isVideo = item.attachment?.signedUrl && item.attachment.media_type === "video";
+
+    if (isVideo) {
+      const attempt = {
+        attempt: attempts.length + 1,
+        media: item.attachment,
+        note: item.message,
+        coach: null,
+      };
+      attempts.push(attempt);
+      // A response may be associated only while this attempt is still waiting.
+      waitingAttempt = attempt;
+      continue;
+    }
+
+    if (isUser) {
+      // Text questions can happen while the attempt is pending. Supporting
+      // images are a new context item, so they cancel the pending association.
+      const isSupportingImage = item.attachment?.signedUrl && item.attachment.media_type === "image";
+      if (isSupportingImage) waitingAttempt = null;
+      continue;
+    }
+
+    if (waitingAttempt) {
+      // Existing coach rows do not always carry uploadId. The first coach row
+      // immediately following an attempt is the conservative association.
+      waitingAttempt.coach = item;
+      waitingAttempt = null;
+    }
+  }
+
+  return attempts;
+}
+
+export default function ChatPanel({ coachingSessionId, userId, initialMessages = [], initialProgressState = null }) {
+  const router = useRouter();
   const [typing, setTyping] = useState(false);
   const [messages, setMessages] = useState(initialMessages);
   const [inputValue, setInputValue] = useState("");
   const [progressState, setProgressState] = useState(initialProgressState);
   const [finishing, setFinishing] = useState(false);
   const [savingFeedbackMessageId, setSavingFeedbackMessageId] = useState(null);
-
   const endRef = useRef(null);
   const uploadFormRef = useRef(null);
 
   async function saveMessage(message, sender) {
-    if (!userId || !coachingSessionId) {
-      return null;
-    }
-
-    const supabase = createClient();
-
-    const { data, error } = await supabase
-      .from("chat_history")
-      .insert({
-        user_id: userId,
-        coaching_session_id: coachingSessionId,
-        message,
-        sender,
-      })
-      .select("id")
-      .single();
-
-    if (error) {
-      console.error("Error saving message:", error.message);
-      return null;
-    }
-
+    if (!userId || !coachingSessionId) return null;
+    const { data, error } = await createClient().from("chat_history").insert({ user_id: userId, coaching_session_id: coachingSessionId, message, sender }).select("id").single();
+    if (error) { console.error("Error saving message:", error.message); return null; }
     return data.id;
   }
 
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  useEffect(() => {
-    function handleCoachMessage(event) {
-      const coachMessage = event.detail;
-
-      if (!coachMessage?.message) {
-        return;
-      }
-
-      setMessages((currentMessages) => [
-        ...currentMessages,
-        {
-          id: coachMessage.id,
-          message: coachMessage.message,
-          sender: "ChatGPT",
-          coachingHelpful: coachMessage.coachingHelpful ?? null,
-        },
-      ]);
-    }
-
-    function handleUserAttachment(event) {
-      const attachmentMessage = event.detail;
-
-      if (!attachmentMessage?.attachment?.signedUrl) {
-        return;
-      }
-
-      setMessages((currentMessages) => [
-        ...currentMessages,
-        {
-          message: attachmentMessage.message,
-          sender: "user",
-          uploadId: attachmentMessage.uploadId,
-          attachment: attachmentMessage.attachment,
-        },
-      ]);
-    }
-
-    function handleProgressUpdate(event) {
-      const updatedState = event.detail;
-
-      if (!updatedState) {
-        return;
-      }
-
-      setProgressState(updatedState);
-    }
-
-    window.addEventListener("climbing-coach-message", handleCoachMessage);
-    window.addEventListener("climbing-user-attachment", handleUserAttachment);
-    window.addEventListener("climbing-progress-update", handleProgressUpdate);
-
-    return () => {
-      window.removeEventListener("climbing-coach-message", handleCoachMessage);
-      window.removeEventListener(
-        "climbing-user-attachment",
-        handleUserAttachment,
-      );
-      window.removeEventListener(
-        "climbing-progress-update",
-        handleProgressUpdate,
-      );
-    };
+    const onCoach = (event) => { const item = event.detail; if (item?.message) setMessages((current) => [...current, { id: item.id, message: item.message, sender: "ChatGPT", uploadId: item.uploadId, coachingHelpful: item.coachingHelpful ?? null }]); };
+    const onAttachment = (event) => { const item = event.detail; if (item?.attachment?.signedUrl) setMessages((current) => [...current, { message: item.message, sender: "user", uploadId: item.uploadId, attachment: item.attachment }]); };
+    const onProgress = (event) => { if (event.detail) setProgressState(event.detail); };
+    window.addEventListener("climbing-coach-message", onCoach); window.addEventListener("climbing-user-attachment", onAttachment); window.addEventListener("climbing-progress-update", onProgress);
+    return () => { window.removeEventListener("climbing-coach-message", onCoach); window.removeEventListener("climbing-user-attachment", onAttachment); window.removeEventListener("climbing-progress-update", onProgress); };
   }, []);
 
-  async function processMessageToChatGPT(chatMessages, userText) {
+  async function processMessage(chatMessages, userText) {
     try {
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          sessionId: coachingSessionId,
-          message: userText,
-        }),
-      });
-
+      const response = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sessionId: coachingSessionId, message: userText }) });
       const data = await response.json();
-
       if (!response.ok) {
-        if (
-          data.code === "SUBSCRIPTION_REQUIRED" ||
-          data.code === "INSUFFICIENT_CREDITS"
-        ) {
-          posthog.capture(
-            "paywall_viewed",
-            {
-              source: "chat_coaching",
-            },
-            {
-              send_instantly: true,
-            },
-          );
-
-          router.push("/pricing?source=chat_coaching");
-          return;
-        }
-
+        if (data.code === "SUBSCRIPTION_REQUIRED" || data.code === "INSUFFICIENT_CREDITS") { posthog.capture("paywall_viewed", { source: "chat_coaching" }, { send_instantly: true }); router.push("/pricing?source=chat_coaching"); return; }
         throw new Error(data.error || "Chat request failed.");
       }
-
       const agentText = data.reply ?? "(No response from coach)";
-      const coachMessageId = await saveMessage(agentText, "ChatGPT");
-
-      setMessages([
-        ...chatMessages,
-        {
-          id: coachMessageId,
-          message: agentText,
-          sender: "ChatGPT",
-          coachingHelpful: null,
-        },
-      ]);
-
-      posthog.capture(
-        "text_coach_interaction",
-        {
-          session_id: coachingSessionId,
-          coach_message_id: coachMessageId,
-        },
-        {
-          send_instantly: true,
-        },
-      );
+      const id = await saveMessage(agentText, "ChatGPT");
+      setMessages([...chatMessages, { id, message: agentText, sender: "ChatGPT", coachingHelpful: null }]);
+      posthog.capture("text_coach_interaction", { session_id: coachingSessionId, coach_message_id: id }, { send_instantly: true });
     } catch (error) {
       console.error("Coach error:", error);
-
-      const fallback =
-        "Sorry—I'm having trouble reaching the AI coach right now. Please try again.";
-
-      const coachMessageId = await saveMessage(fallback, "ChatGPT");
-
-      setMessages([
-        ...chatMessages,
-        {
-          id: coachMessageId,
-          message: fallback,
-          sender: "ChatGPT",
-          coachingHelpful: null,
-        },
-      ]);
-    } finally {
-      setTyping(false);
-    }
+      const fallback = "Sorry—I'm having trouble reaching the AI coach right now. Please try again.";
+      const id = await saveMessage(fallback, "ChatGPT");
+      setMessages([...chatMessages, { id, message: fallback, sender: "ChatGPT", coachingHelpful: null }]);
+    } finally { setTyping(false); }
   }
 
   async function saveCoachingFeedback(messageId, helpful) {
-    if (!messageId || savingFeedbackMessageId === messageId) {
-      return;
-    }
-
+    if (!messageId || savingFeedbackMessageId === messageId) return;
     setSavingFeedbackMessageId(messageId);
-
-    const supabase = createClient();
-
-    const { error } = await supabase
-      .from("chat_history")
-      .update({
-        coaching_helpful: helpful,
-        coaching_feedback_at: new Date().toISOString(),
-      })
-      .eq("id", messageId)
-      .eq("user_id", userId);
-
-    if (error) {
-      console.error("Failed to save coaching feedback:", error);
-      alert("Failed to save feedback.");
-    } else {
-      setMessages((currentMessages) =>
-        currentMessages.map((item) =>
-          item.id === messageId
-            ? {
-                ...item,
-                coachingHelpful: helpful,
-              }
-            : item,
-        ),
-      );
-
-      posthog.capture(
-        "coaching_feedback_given",
-        {
-          session_id: coachingSessionId,
-          coach_message_id: messageId,
-          helpful,
-        },
-        {
-          send_instantly: true,
-        },
-      );
-    }
-
+    const { error } = await createClient().from("chat_history").update({ coaching_helpful: helpful, coaching_feedback_at: new Date().toISOString() }).eq("id", messageId).eq("user_id", userId);
+    if (error) alert("Failed to save feedback.");
+    else { setMessages((current) => current.map((item) => item.id === messageId ? { ...item, coachingHelpful: helpful } : item)); posthog.capture("coaching_feedback_given", { session_id: coachingSessionId, coach_message_id: messageId, helpful }, { send_instantly: true }); }
     setSavingFeedbackMessageId(null);
   }
 
   async function finishProblem() {
-    if (finishing) {
-      return;
-    }
-
+    if (finishing) return;
     setFinishing(true);
-
     try {
-      const response = await fetch("/api/finish-session", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          sessionId: coachingSessionId,
-        }),
-      });
-
+      const response = await fetch("/api/finish-session", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sessionId: coachingSessionId }) });
       const data = await response.json();
-
-      if (!response.ok) {
-        console.error("Finish session error:", data);
-
-        if (
-          data.code === "SUBSCRIPTION_REQUIRED" ||
-          data.code === "INSUFFICIENT_CREDITS"
-        ) {
-          posthog.capture(
-            "paywall_viewed",
-            {
-              source: "finish_session",
-            },
-            {
-              send_instantly: true,
-            },
-          );
-
-          router.push("/pricing?source=finish_session");
-          return;
-        }
-
-        alert("Failed to finish this problem.");
-        return;
-      }
-
-      router.push("/upload");
-      router.refresh();
-    } catch (error) {
-      console.error("Finish session error:", error);
-      alert("Failed to finish this problem.");
-    } finally {
-      setFinishing(false);
-    }
+      if (!response.ok) { if (data.code === "SUBSCRIPTION_REQUIRED" || data.code === "INSUFFICIENT_CREDITS") { posthog.capture("paywall_viewed", { source: "finish_session" }, { send_instantly: true }); router.push("/pricing?source=finish_session"); return; } alert("Failed to finish this problem."); return; }
+      router.push("/upload"); router.refresh();
+    } catch { alert("Failed to finish this problem."); } finally { setFinishing(false); }
   }
 
   async function send() {
-    if (typing) {
-      return;
-    }
-
-    if (uploadFormRef.current?.hasFile) {
-      await uploadFormRef.current.submitAttachment();
-      return;
-    }
-
-    const text = inputValue.trim();
-
-    if (!text) {
-      return;
-    }
-
-    const next = [...messages, { message: text, sender: "user" }];
-
-    setMessages(next);
-    setInputValue("");
-    setTyping(true);
-
-    await saveMessage(text, "User");
-    await processMessageToChatGPT(next, text);
+    if (typing) return;
+    if (uploadFormRef.current?.hasFile) { await uploadFormRef.current.submitAttachment(); return; }
+    const text = inputValue.trim(); if (!text) return;
+    const next = [...messages, { message: text, sender: "user" }]; setMessages(next); setInputValue(""); setTyping(true); await saveMessage(text, "User"); await processMessage(next, text);
   }
 
+  const attempts = buildAttempts(messages);
+  const currentExperiment = progressState?.next_attempt_test || progressState?.current_experiment || null;
+  const currentProgressNote = progressState?.progress_note || null;
+
   return (
-    <div>
-      {progressState && (
-        <div>
-          <h2>Current Focus</h2>
-
-          <p>
-            <strong>Active limiter:</strong>{" "}
-            {progressState.active_limiter || "Not identified yet"}
-          </p>
-
-          <p>
-            <strong>Progress:</strong>{" "}
-            {progressState.progress_note || "No progress recorded yet"}
-          </p>
-
-          <p>
-            <strong>What we&apos;re testing:</strong>{" "}
-            {progressState.current_experiment || "No active experiment yet"}
-          </p>
-
-          <p>
-            <strong>Next attempt should test:</strong>{" "}
-            {progressState.next_attempt_test || "No test defined yet"}
-          </p>
+    <section className="coaching-grid">
+      <div className="coaching-main">
+        <div className="loop-label"><span className="live-dot" /> THE ADAPTIVE LOOP <span className="loop-line" /></div>
+        <div className="next-card">
+          <div className="next-card-top"><span className="next-kicker">TRY THIS NEXT</span><span className="next-arrow">↗</span></div>
+          <h2>{currentExperiment || "No next test saved yet"}</h2>
+          {currentExperiment && <>
+            {progressState?.active_limiter && <p>Based on your current limiter: {progressState.active_limiter}</p>}
+            <div className="next-action"><span>Retry the problem</span><span>↓</span></div>
+          </>}
         </div>
-      )}
 
-      <h2>Ask your coach</h2>
+        {progressState?.progress_note && <div className="progress-note"><span className="check-mark">✓</span><div><strong>Coach&apos;s read</strong><p>{progressState.progress_note}</p></div></div>}
 
-      <div>
-        {messages.map((item, index) => (
-          <div key={item.id ?? index}>
-            <strong>{item.sender === "user" ? "You" : "Coach"}:</strong>
-
-            {item.attachment?.media_type === "video" &&
-              item.attachment?.attempt_number && (
-                <div>
-                  <strong>Attempt {item.attachment.attempt_number}</strong>
-                </div>
-              )}
-
-            {item.attachment?.signedUrl && (
-              <div>
-                {item.attachment.media_type === "video" ? (
-                  <video src={item.attachment.signedUrl} controls width="320" />
-                ) : (
-                  <img
-                    src={item.attachment.signedUrl}
-                    alt={item.message}
-                    width="320"
-                  />
-                )}
+        <div className="attempts-heading"><h2>Your attempts</h2><span>{attempts.length ? `${attempts.length} ${attempts.length === 1 ? "attempt" : "attempts"}` : "Start your first attempt"}</span></div>
+        <div className="attempts-list">
+          {attempts.length === 0 && <div className="empty-attempt"><strong>Your first attempt starts the loop.</strong><span>Upload a clip below and your coach will call out one thing to try.</span></div>}
+          {attempts.map((attempt, index) => (
+            <article className="attempt-row" key={`${attempt.attempt}-${index}`}>
+              <div className="attempt-marker"><span>{attempt.attempt}</span>{index < attempts.length - 1 && <i />}</div>
+              <div className="attempt-card">
+                <div className="attempt-heading"><div><span className="attempt-label">ATTEMPT {attempt.attempt}</span><span className="attempt-status">{index === attempts.length - 1 ? "Latest read" : "Reviewed"}</span></div></div>
+                {attempt.media.media_type === "video" ? <video className="attempt-media" src={attempt.media.signedUrl} controls /> : <img className="attempt-media" src={attempt.media.signedUrl} alt={attempt.note || `Climbing attempt ${attempt.attempt}`} />}
+                {attempt.note && attempt.note !== `Attempt ${attempt.attempt}` && <p className="attempt-caption">{attempt.note}</p>}
+                {(attempt.coach || index === 0 || (index === attempts.length - 1 && currentProgressNote)) && <div className="insight-grid">
+                  {attempt.coach && <div><span className="insight-label">COACH NOTICED</span><p>{attempt.coach.message}</p></div>}
+                  {(index === 0 || (index === attempts.length - 1 && currentProgressNote)) && <div><span className="insight-label">WHAT CHANGED</span><p>{index === 0 ? "Baseline attempt." : currentProgressNote}</p></div>}
+                </div>}
+                {attempt.coach && <div className="coach-feedback"><div>{index === attempts.length - 1 && currentExperiment && <><span className="insight-label">NEXT EXPERIMENT</span><strong>{currentExperiment}</strong></>}</div><div className="feedback-buttons"><button type="button" onClick={() => saveCoachingFeedback(attempt.coach.id, true)} disabled={savingFeedbackMessageId === attempt.coach.id}>{attempt.coach.coachingHelpful === true ? "Helpful ✓" : "Helpful"}</button><button type="button" onClick={() => saveCoachingFeedback(attempt.coach.id, false)} disabled={savingFeedbackMessageId === attempt.coach.id}>{attempt.coach.coachingHelpful === false ? "Not quite" : "Feedback"}</button></div></div>}
               </div>
-            )}
-
-            {item.message !== `Attempt ${item.attachment?.attempt_number}` && (
-              <span>{item.message}</span>
-            )}
-
-            {item.sender !== "user" && item.id && (
-              <div>
-                <span>Helpful? </span>
-
-                <button
-                  type="button"
-                  onClick={() => saveCoachingFeedback(item.id, true)}
-                  disabled={savingFeedbackMessageId === item.id}
-                >
-                  {item.coachingHelpful === true ? "Yes (selected)" : "Yes"}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => saveCoachingFeedback(item.id, false)}
-                  disabled={savingFeedbackMessageId === item.id}
-                >
-                  {item.coachingHelpful === false ? "No (selected)" : "No"}
-                </button>
-              </div>
-            )}
-          </div>
-        ))}
-
-        {typing && <div>Coach is typing...</div>}
-
-        <div ref={endRef} />
+            </article>
+          ))}
+        </div>
       </div>
 
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "8px",
-        }}
-      >
-        <UploadForm
-          ref={uploadFormRef}
-          initialCoachingSessionId={coachingSessionId}
-          composerMode
-          messageText={inputValue}
-          onAttachmentSent={() => setInputValue("")}
-        />
-
-        <input
-          type="text"
-          value={inputValue}
-          onChange={(event) => setInputValue(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              send();
-            }
-          }}
-          placeholder="Ask your coach..."
-          style={{ flex: 1 }}
-        />
-
-        <button type="button" onClick={send}>
-          Send
-        </button>
-      </div>
-
-      <button type="button" onClick={finishProblem} disabled={finishing}>
-        {finishing ? "Finishing..." : "Finish problem"}
-      </button>
-    </div>
+      <aside className="coach-sidebar">
+        <div className="sidebar-heading"><div><span className="eyebrow">COACHING THREAD</span><h2>Talk it through</h2></div><span className="coach-pulse" /></div>
+        <p className="sidebar-copy">Ask a question between attempts. Keep the loop moving.</p>
+        <div className="thread-messages">{messages.filter((item) => !(item.attachment?.signedUrl && item.attachment.media_type === "video")).map((item, index) => <div className={`thread-message ${item.sender === "user" ? "is-user" : "is-coach"}`} key={item.id ?? index}><span>{item.sender === "user" ? "YOU" : "COACH"}</span>{item.message && <p>{item.message}</p>}{item.attachment?.signedUrl && item.attachment.media_type === "image" && <img className="thread-attachment" src={item.attachment.signedUrl} alt={item.message || "Route or wall context"} />}</div>)}{typing && <div className="typing">Coach is thinking<span>...</span></div>}<div ref={endRef} /></div>
+        <div className="composer"><UploadForm ref={uploadFormRef} initialCoachingSessionId={coachingSessionId} composerMode messageText={inputValue} onAttachmentSent={() => setInputValue("")} /><input value={inputValue} onChange={(event) => setInputValue(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.nativeEvent.isComposing && event.keyCode !== 229) send(); }} placeholder="Ask your coach..." aria-label="Ask your coach" /><button type="button" onClick={send} aria-label="Send message">Send</button></div>
+        <button className="finish-button" type="button" onClick={finishProblem} disabled={finishing}>{finishing ? "Finishing..." : "Finish problem"}<span>→</span></button>
+      </aside>
+    </section>
   );
 }

@@ -5,16 +5,10 @@ import ShareClipButton from "./share-clip-button";
 
 export default async function CoachingSessionPage({ params }) {
   const { sessionId } = await params;
-
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/login");
-  }
+  if (!user) redirect("/login");
 
   const { data: coachingSession } = await supabase
     .from("coaching_sessions")
@@ -23,9 +17,7 @@ export default async function CoachingSessionPage({ params }) {
     .eq("user_id", user.id)
     .maybeSingle();
 
-  if (!coachingSession) {
-    redirect("/upload");
-  }
+  if (!coachingSession) redirect("/upload");
 
   const { data: latestUpload, error: latestUploadError } = await supabase
     .from("uploads")
@@ -36,12 +28,9 @@ export default async function CoachingSessionPage({ params }) {
     .limit(1)
     .maybeSingle();
 
-  if (latestUploadError) {
-    console.error("Failed to load latest video upload:", latestUploadError);
-  }
+  if (latestUploadError) console.error("Failed to load latest video upload:", latestUploadError);
 
   let latestAnalysis = null;
-
   if (latestUpload) {
     const { data, error } = await supabase
       .from("analyses")
@@ -49,111 +38,73 @@ export default async function CoachingSessionPage({ params }) {
       .eq("upload_id", latestUpload.id)
       .eq("status", "completed")
       .maybeSingle();
-
-    if (error) {
-      console.error("Failed to load latest analysis:", error);
-    }
-
+    if (error) console.error("Failed to load latest analysis:", error);
     latestAnalysis = data;
   }
 
   let latestVideoUrl = null;
-
   if (latestUpload?.media_path) {
-    const { data: signedUrlData, error: signedUrlError } =
-      await supabase.storage
-        .from("climbing-media")
-        .createSignedUrl(latestUpload.media_path, 3600);
-
-    if (signedUrlError) {
-      console.error("Failed to create latest video URL:", signedUrlError);
-    }
-
-    latestVideoUrl = signedUrlData?.signedUrl ?? null;
+    const { data, error } = await supabase.storage
+      .from("climbing-media")
+      .createSignedUrl(latestUpload.media_path, 3600);
+    if (error) console.error("Failed to create latest video URL:", error);
+    latestVideoUrl = data?.signedUrl ?? null;
   }
 
   const { data: progressState, error: progressStateError } = await supabase
     .from("climber_progress_state")
-    .select(
-      "active_limiter, progress_note, current_experiment, next_attempt_test",
-    )
+    .select("active_limiter, progress_note, current_experiment, next_attempt_test")
     .eq("user_id", user.id)
     .maybeSingle();
-
-  if (progressStateError) {
-    console.error("Failed to load climber progress:", progressStateError);
-  }
+  if (progressStateError) console.error("Failed to load climber progress:", progressStateError);
 
   const { data: chatHistory, error: chatHistoryError } = await supabase
     .from("chat_history")
-    .select(
-      `
-    id,
-    message,
-    sender,
-    upload_id,
-    coaching_helpful,
-    uploads (
-      media_path,
-      media_type,
-      attempt_number
-    )
-  `,
-    )
+    .select(`id, message, sender, upload_id, coaching_helpful, uploads (media_path, media_type, attempt_number)`)
     .eq("user_id", user.id)
     .eq("coaching_session_id", sessionId)
     .order("created_at", { ascending: true });
+  if (chatHistoryError) console.error("Failed to load chat history:", chatHistoryError);
 
-  if (chatHistoryError) {
-    console.error("Failed to load chat history:", chatHistoryError);
-  }
-
-  const initialMessages = await Promise.all(
-    (chatHistory || []).map(async (item) => {
-      let attachment = null;
-
-      if (item.uploads?.media_path) {
-        const { data: signedUrlData } = await supabase.storage
-          .from("climbing-media")
-          .createSignedUrl(item.uploads.media_path, 3600);
-
-        attachment = {
-          ...item.uploads,
-          signedUrl: signedUrlData?.signedUrl ?? null,
-        };
-      }
-
-      return {
-        id: item.id,
-        message: item.message,
-        sender: item.sender === "User" ? "user" : "ChatGPT",
-        uploadId: item.upload_id,
-        coachingHelpful: item.coaching_helpful,
-        attachment,
-      };
-    }),
-  );
+  const initialMessages = await Promise.all((chatHistory || []).map(async (item) => {
+    let attachment = null;
+    if (item.uploads?.media_path) {
+      const { data } = await supabase.storage.from("climbing-media").createSignedUrl(item.uploads.media_path, 3600);
+      attachment = { ...item.uploads, signedUrl: data?.signedUrl ?? null };
+    }
+    return {
+      id: item.id,
+      message: item.message,
+      sender: item.sender === "User" ? "user" : "ChatGPT",
+      uploadId: item.upload_id,
+      coachingHelpful: item.coaching_helpful,
+      attachment,
+    };
+  }));
 
   return (
-    <>
-      <h1>Climbing Session</h1>
-      <p>Session: {sessionId}</p>
-
-      <a href="/upload">Start a different problem</a>
-      <br />
-      <a href="/profile">Edit coaching profile</a>
-
-      <ShareClipButton
-        videoSrc={latestVideoUrl}
-        coachingCaption={latestAnalysis?.result ?? ""}
-      />
-
+    <main className="session-shell">
+      <header className="session-header">
+        <a className="wordmark" href="/upload">CLIMB<span>/</span>COACH</a>
+        <div className="header-actions">
+          <a href="/profile">Profile</a>
+          <a className="quiet-link" href="/upload">New problem</a>
+        </div>
+      </header>
+      <div className="session-intro">
+        <div>
+          <p className="eyebrow">LIVE COACHING SESSION</p>
+          <h1>Read the wall. <em>Adapt.</em></h1>
+          <p className="intro-copy">Your coach is tracking the details between every attempt.</p>
+        </div>
+        <ShareClipButton videoSrc={latestVideoUrl} coachingCaption={latestAnalysis?.result ?? ""} />
+      </div>
       <ChatPanel
         coachingSessionId={sessionId}
         userId={user.id}
         initialMessages={initialMessages}
         initialProgressState={progressState}
       />
-    </>
+    </main>
   );
 }
