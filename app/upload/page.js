@@ -51,70 +51,134 @@ export default async function UploadPage() {
     console.error("Failed to load recent sessions:", recentSessionsError);
   }
 
+  const focusItems = [
+    ["Limiter", progressState?.active_limiter],
+    ["Progress", progressState?.progress_note],
+    ["Current test", progressState?.current_experiment],
+    ["Next attempt", progressState?.next_attempt_test],
+  ].filter(([, value]) => value);
+
   return (
     <>
       <CheckoutSuccessTracker />
 
-      <h1>Climbing Coach</h1>
+      <main className="upload-shell">
+        <header className="session-header upload-header">
+          <a className="wordmark" href="/upload">
+            CLIMB<span>/</span>COACH
+          </a>
+          <nav className="header-actions" aria-label="Account navigation">
+            <a href="/profile">Profile</a>
+            <a className="quiet-link" href="/upload">
+              New problem
+            </a>
+          </nav>
+        </header>
 
-      <StartSessionButton />
-
-      <p>Or start immediately with an attempt:</p>
-
-      <UploadForm />
-
-      {progressState && (
-        <>
-          <h2>Current Coaching Focus</h2>
-
-          <p>
-            <strong>Limiter:</strong>{" "}
-            {progressState.active_limiter || "No active limiter yet."}
-          </p>
-
-          <p>
-            <strong>Progress:</strong>{" "}
-            {progressState.progress_note || "No progress recorded yet."}
-          </p>
-
-          <p>
-            <strong>Testing:</strong>{" "}
-            {progressState.current_experiment || "No active experiment yet."}
-          </p>
-
-          <p>
-            <strong>Next attempt:</strong>{" "}
-            {progressState.next_attempt_test || "No next test yet."}
-          </p>
-        </>
-      )}
-
-      <h2>Recent Problems</h2>
-
-      {recentSessions?.length ? (
-        recentSessions.map((session) => (
-          <div key={session.id}>
-            <Link href={`/session/${session.id}`}>
-              {new Date(session.started_at).toLocaleString()}
-            </Link>
-
-            <p>
-              {session.uploads?.length ?? 0}{" "}
-              {(session.uploads?.length ?? 0) === 1 ? "attempt" : "attempts"}
+        <section className="upload-hero" aria-labelledby="upload-title">
+          <div className="upload-hero-copy">
+            <p className="eyebrow">ADAPTIVE CLIMBING COACH</p>
+            <h1 id="upload-title">
+              Bring the wall.<br />
+              <em>We&apos;ll find the next move.</em>
+            </h1>
+            <p className="intro-copy">
+              Start with a conversation or send your first attempt. Your coach
+              will follow the details and adapt from there.
             </p>
+          </div>
+          <div className="upload-hero-action">
+            <span className="action-index">01 / START HERE</span>
+            <StartSessionButton />
+            <p>Open a focused coaching thread for your next session.</p>
+          </div>
+        </section>
 
-            {session.session_summary && <p>{session.session_summary}</p>}
+        <section className="upload-grid" aria-label="Start coaching">
+          <div className="upload-primary-panel">
+            <div className="panel-heading">
+              <div>
+                <p className="eyebrow">OR START WITH AN ATTEMPT</p>
+                <h2>Send a video or wall photo.</h2>
+              </div>
+              <span className="panel-mark">02</span>
+            </div>
+            <p className="panel-copy">
+              Upload the context your coach needs. Videos become attempts;
+              photos stay in the thread to help read the problem.
+            </p>
+            <UploadForm />
+          </div>
 
-            {session.next_session_focus && (
-              <p>
-                <strong>Next focus:</strong> {session.next_session_focus}
+          <aside className="focus-panel">
+            <div className="panel-heading">
+              <div>
+                <p className="eyebrow">CURRENT COACHING FOCUS</p>
+                <h2>What we&apos;re tracking</h2>
+              </div>
+              <span className="live-dot" aria-hidden="true" />
+            </div>
+            {focusItems.length ? (
+              <div className="focus-list">
+                {focusItems.map(([label, value]) => (
+                  <div className="focus-item" key={label}>
+                    <span>{label}</span>
+                    <p>{value}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="empty-copy">
+                Your first session will establish a coaching focus here.
               </p>
             )}
+          </aside>
+        </section>
+
+        <section className="history-section" aria-labelledby="history-title">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">YOUR COACHING LOG</p>
+              <h2 id="history-title">Recent problems</h2>
+            </div>
+            <span>{recentSessions?.length ?? 0} sessions</span>
           </div>
-        ))
-      ) : (
-        <p>No climbing history yet.</p>
-      )}
+
+          {recentSessions?.length ? (
+            <div className="history-grid">
+              {recentSessions.map((session) => {
+                const attemptCount = session.uploads?.length ?? 0;
+                return (
+                  <Link
+                    className="history-card"
+                    href={`/session/${session.id}`}
+                    key={session.id}
+                  >
+                    <div className="history-card-top">
+                      <span>{new Date(session.started_at).toLocaleDateString()}</span>
+                      <span className="history-arrow" aria-hidden="true">↗</span>
+                    </div>
+                    <h3>{session.session_summary || "Climbing session"}</h3>
+                    <p className="history-meta">
+                      {attemptCount} {attemptCount === 1 ? "attempt" : "attempts"}
+                    </p>
+                    {session.next_session_focus && (
+                      <p className="history-focus">
+                        <strong>Next focus</strong> {session.next_session_focus}
+                      </p>
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="history-empty">
+              <p>No climbing history yet.</p>
+              <span>Your first session will appear here.</span>
+            </div>
+          )}
+        </section>
+      </main>
     </>
   );
 }
