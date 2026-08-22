@@ -62,15 +62,15 @@ export default async function UploadPage() {
   return (
     <>
       <CheckoutSuccessTracker />
+      <AuthenticatedNavbar />
 
       <main className="upload-shell">
-        <AuthenticatedNavbar />
-
         <section className="upload-hero" aria-labelledby="upload-title">
           <div className="upload-hero-copy">
             <p className="eyebrow">ADAPTIVE CLIMBING COACH</p>
             <h1 id="upload-title">
-              Bring the wall.<br />
+              Bring the wall.
+              <br />
               <em>We&apos;ll find the next move.</em>
             </h1>
             <p className="intro-copy">
@@ -146,12 +146,17 @@ export default async function UploadPage() {
                     key={session.id}
                   >
                     <div className="history-card-top">
-                      <span>{new Date(session.started_at).toLocaleDateString()}</span>
-                      <span className="history-arrow" aria-hidden="true">↗</span>
+                      <span>
+                        {new Date(session.started_at).toLocaleDateString()}
+                      </span>
+                      <span className="history-arrow" aria-hidden="true">
+                        ↗
+                      </span>
                     </div>
                     <h3>{session.session_summary || "Climbing session"}</h3>
                     <p className="history-meta">
-                      {attemptCount} {attemptCount === 1 ? "attempt" : "attempts"}
+                      {attemptCount}{" "}
+                      {attemptCount === 1 ? "attempt" : "attempts"}
                     </p>
                     {session.next_session_focus && (
                       <p className="history-focus">
