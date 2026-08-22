@@ -111,8 +111,8 @@ export default function ChatPanel({ coachingSessionId, userId, initialMessages =
   }
 
   const attempts = buildAttempts(messages);
-  const currentExperiment = progressState?.next_attempt_test || progressState?.current_experiment || "Upload your next attempt so your coach can find the next adjustment.";
-  const latestCoach = attempts.at(-1)?.coach;
+  const currentExperiment = progressState?.next_attempt_test || progressState?.current_experiment || null;
+  const currentProgressNote = progressState?.progress_note || null;
 
   return (
     <section className="coaching-grid">
@@ -120,9 +120,11 @@ export default function ChatPanel({ coachingSessionId, userId, initialMessages =
         <div className="loop-label"><span className="live-dot" /> THE ADAPTIVE LOOP <span className="loop-line" /></div>
         <div className="next-card">
           <div className="next-card-top"><span className="next-kicker">TRY THIS NEXT</span><span className="next-arrow">↗</span></div>
-          <h2>{currentExperiment}</h2>
-          <p>{progressState?.active_limiter ? `Based on your current limiter: ${progressState.active_limiter}` : "One focused experiment at a time. Your next attempt gives the coach new information."}</p>
-          <div className="next-action"><span>Retry the problem</span><span>↓</span></div>
+          <h2>{currentExperiment || "No next test saved yet"}</h2>
+          {currentExperiment && <>
+            {progressState?.active_limiter && <p>Based on your current limiter: {progressState.active_limiter}</p>}
+            <div className="next-action"><span>Retry the problem</span><span>↓</span></div>
+          </>}
         </div>
 
         {progressState?.progress_note && <div className="progress-note"><span className="check-mark">✓</span><div><strong>Coach&apos;s read</strong><p>{progressState.progress_note}</p></div></div>}
@@ -139,9 +141,9 @@ export default function ChatPanel({ coachingSessionId, userId, initialMessages =
                 {attempt.note && attempt.note !== `Attempt ${attempt.attempt}` && <p className="attempt-caption">{attempt.note}</p>}
                 <div className="insight-grid">
                   <div><span className="insight-label">COACH NOTICED</span><p>{attempt.coach?.message || "Your coach is reviewing this attempt..."}</p></div>
-                  <div><span className="insight-label">WHAT CHANGED</span><p>{index ? "Compare this movement with your previous attempt." : "Baseline captured. Your next try gives us a comparison."}</p></div>
+                  {(index === 0 || (index === attempts.length - 1 && currentProgressNote)) && <div><span className="insight-label">WHAT CHANGED</span><p>{index === 0 ? "Baseline attempt." : currentProgressNote}</p></div>}
                 </div>
-                {attempt.coach && <div className="coach-feedback"><div><span className="insight-label">NEXT EXPERIMENT</span><strong>{index === attempts.length - 1 ? currentExperiment : "Keep the adjustment and notice what feels different."}</strong></div><div className="feedback-buttons"><button type="button" onClick={() => saveCoachingFeedback(attempt.coach.id, true)} disabled={savingFeedbackMessageId === attempt.coach.id}>{attempt.coach.coachingHelpful === true ? "Helpful ✓" : "Helpful"}</button><button type="button" onClick={() => saveCoachingFeedback(attempt.coach.id, false)} disabled={savingFeedbackMessageId === attempt.coach.id}>{attempt.coach.coachingHelpful === false ? "Not quite" : "Feedback"}</button></div></div>}
+                {attempt.coach && <div className="coach-feedback"><div>{index === attempts.length - 1 && currentExperiment && <><span className="insight-label">NEXT EXPERIMENT</span><strong>{currentExperiment}</strong></>}</div><div className="feedback-buttons"><button type="button" onClick={() => saveCoachingFeedback(attempt.coach.id, true)} disabled={savingFeedbackMessageId === attempt.coach.id}>{attempt.coach.coachingHelpful === true ? "Helpful ✓" : "Helpful"}</button><button type="button" onClick={() => saveCoachingFeedback(attempt.coach.id, false)} disabled={savingFeedbackMessageId === attempt.coach.id}>{attempt.coach.coachingHelpful === false ? "Not quite" : "Feedback"}</button></div></div>}
               </div>
             </article>
           ))}
