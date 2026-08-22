@@ -41,9 +41,8 @@ export default function OnboardingForm({ userId }) {
   const [heightCm, setHeightCm] = useState("");
   const [experienceLevel, setExperienceLevel] = useState("");
   const [typicalGrade, setTypicalGrade] = useState("");
-  const [climbingStyles, setClimbingStyles] = useState([]);
-  const [goals, setGoals] = useState([]);
-  const [weaknesses, setWeaknesses] = useState([]);
+  const [goal, setGoal] = useState("");
+  const [weakness, setWeakness] = useState("");
 
   const [step, setStep] = useState(0);
 
