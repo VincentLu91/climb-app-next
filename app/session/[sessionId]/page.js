@@ -7,7 +7,9 @@ import AuthenticatedNavbar from "@/components/authenticated-navbar";
 export default async function CoachingSessionPage({ params }) {
   const { sessionId } = await params;
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   if (!user) redirect("/login");
 
@@ -29,7 +31,8 @@ export default async function CoachingSessionPage({ params }) {
     .limit(1)
     .maybeSingle();
 
-  if (latestUploadError) console.error("Failed to load latest video upload:", latestUploadError);
+  if (latestUploadError)
+    console.error("Failed to load latest video upload:", latestUploadError);
 
   let latestAnalysis = null;
   if (latestUpload) {
@@ -54,52 +57,72 @@ export default async function CoachingSessionPage({ params }) {
 
   const { data: progressState, error: progressStateError } = await supabase
     .from("climber_progress_state")
-    .select("active_limiter, progress_note, current_experiment, next_attempt_test")
+    .select(
+      "active_limiter, progress_note, current_experiment, next_attempt_test",
+    )
     .eq("user_id", user.id)
     .maybeSingle();
-  if (progressStateError) console.error("Failed to load climber progress:", progressStateError);
+  if (progressStateError)
+    console.error("Failed to load climber progress:", progressStateError);
 
   const { data: chatHistory, error: chatHistoryError } = await supabase
     .from("chat_history")
-    .select(`id, message, sender, upload_id, coaching_helpful, uploads (media_path, media_type, attempt_number)`)
+    .select(
+      `id, message, sender, upload_id, coaching_helpful, uploads (media_path, media_type, attempt_number)`,
+    )
     .eq("user_id", user.id)
     .eq("coaching_session_id", sessionId)
     .order("created_at", { ascending: true });
-  if (chatHistoryError) console.error("Failed to load chat history:", chatHistoryError);
+  if (chatHistoryError)
+    console.error("Failed to load chat history:", chatHistoryError);
 
-  const initialMessages = await Promise.all((chatHistory || []).map(async (item) => {
-    let attachment = null;
-    if (item.uploads?.media_path) {
-      const { data } = await supabase.storage.from("climbing-media").createSignedUrl(item.uploads.media_path, 3600);
-      attachment = { ...item.uploads, signedUrl: data?.signedUrl ?? null };
-    }
-    return {
-      id: item.id,
-      message: item.message,
-      sender: item.sender === "User" ? "user" : "ChatGPT",
-      uploadId: item.upload_id,
-      coachingHelpful: item.coaching_helpful,
-      attachment,
-    };
-  }));
+  const initialMessages = await Promise.all(
+    (chatHistory || []).map(async (item) => {
+      let attachment = null;
+      if (item.uploads?.media_path) {
+        const { data } = await supabase.storage
+          .from("climbing-media")
+          .createSignedUrl(item.uploads.media_path, 3600);
+        attachment = { ...item.uploads, signedUrl: data?.signedUrl ?? null };
+      }
+      return {
+        id: item.id,
+        message: item.message,
+        sender: item.sender === "User" ? "user" : "ChatGPT",
+        uploadId: item.upload_id,
+        coachingHelpful: item.coaching_helpful,
+        attachment,
+      };
+    }),
+  );
 
   return (
-    <main className="session-shell">
+    <>
       <AuthenticatedNavbar />
-      <div className="session-intro">
-        <div>
-          <p className="eyebrow">LIVE COACHING SESSION</p>
-          <h1>Read the wall. <em>Adapt.</em></h1>
-          <p className="intro-copy">Your coach is tracking the details between every attempt.</p>
+
+      <main className="session-shell">
+        <div className="session-intro">
+          <div>
+            <p className="eyebrow">LIVE COACHING SESSION</p>
+            <h1>
+              Read the wall. <em>Adapt.</em>
+            </h1>
+            <p className="intro-copy">
+              Your coach is tracking the details between every attempt.
+            </p>
+          </div>
+          <ShareClipButton
+            videoSrc={latestVideoUrl}
+            coachingCaption={latestAnalysis?.result ?? ""}
+          />
         </div>
-        <ShareClipButton videoSrc={latestVideoUrl} coachingCaption={latestAnalysis?.result ?? ""} />
-      </div>
-      <ChatPanel
-        coachingSessionId={sessionId}
-        userId={user.id}
-        initialMessages={initialMessages}
-        initialProgressState={progressState}
-      />
-    </main>
+        <ChatPanel
+          coachingSessionId={sessionId}
+          userId={user.id}
+          initialMessages={initialMessages}
+          initialProgressState={progressState}
+        />
+      </main>
+    </>
   );
 }
