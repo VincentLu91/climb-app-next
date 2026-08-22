@@ -112,7 +112,7 @@ export default function PricingPage() {
       <section className="pricing-pack" aria-labelledby="pack-heading">
         <div>
           <p className="eyebrow">OCCASIONAL USE</p>
-          <h2 id="pack-heading">Just need a few more attempts?</h2>
+          <h2 id="pack-heading">Just need more coaching credits?</h2>
           <p>Buy 100 credits once. No subscription required.</p>
         </div>
         <div className="pricing-pack-action">
