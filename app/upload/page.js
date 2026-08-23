@@ -8,7 +8,16 @@ import StartSessionButton from "./start-session-button";
 import CheckoutSuccessTracker from "./checkout-success-tracker";
 import AuthenticatedNavbar from "@/components/authenticated-navbar";
 
-export default async function UploadPage() {
+export default async function UploadPage({ searchParams }) {
+  const resolvedSearchParams = await searchParams;
+  const parsedPage = Number.parseInt(resolvedSearchParams?.page, 10);
+  const currentPage =
+    Number.isInteger(parsedPage) && parsedPage > 0 ? parsedPage : 1;
+
+  const sessionsPerPage = 6;
+  const rangeStart = (currentPage - 1) * sessionsPerPage;
+  const rangeEnd = rangeStart + sessionsPerPage - 1;
+
   const supabase = await createClient();
 
   const {
@@ -31,7 +40,11 @@ export default async function UploadPage() {
     console.error("Failed to load climber progress:", progressStateError);
   }
 
-  const { data: recentSessions, error: recentSessionsError } = await supabase
+  const {
+    data: recentSessions,
+    error: recentSessionsError,
+    count: totalSessionCount,
+  } = await supabase
     .from("coaching_sessions")
     .select(
       `
@@ -39,17 +52,25 @@ export default async function UploadPage() {
     started_at,
     session_summary,
     next_session_focus,
-    uploads!inner (
+    uploads (
       id
     )
   `,
+      { count: "exact" },
     )
     .eq("user_id", user.id)
     .order("started_at", { ascending: false })
-    .limit(5);
+    .range(rangeStart, rangeEnd);
 
   if (recentSessionsError) {
     console.error("Failed to load recent sessions:", recentSessionsError);
+  }
+
+  const sessionCount = totalSessionCount ?? recentSessions?.length ?? 0;
+  const totalPages = Math.max(1, Math.ceil(sessionCount / sessionsPerPage));
+
+  if (currentPage > totalPages) {
+    redirect(`/upload?page=${totalPages}`);
   }
 
   const focusItems = [
@@ -130,9 +151,11 @@ export default async function UploadPage() {
           <div className="section-heading">
             <div>
               <p className="eyebrow">YOUR COACHING LOG</p>
-              <h2 id="history-title">Recent problems</h2>
+              <h2 id="history-title">All problems</h2>
             </div>
-            <span>{recentSessions?.length ?? 0} sessions</span>
+            <span>
+              {sessionCount} {sessionCount === 1 ? "session" : "sessions"}
+            </span>
           </div>
 
           {recentSessions?.length ? (
@@ -172,6 +195,33 @@ export default async function UploadPage() {
               <p>No climbing history yet.</p>
               <span>Your first session will appear here.</span>
             </div>
+          )}
+
+          {totalPages > 1 && (
+            <nav
+              className="history-pagination"
+              aria-label="Session history pages"
+            >
+              {currentPage > 1 ? (
+                <Link href={`/upload?page=${currentPage - 1}`} scroll={false}>
+                  ← Previous
+                </Link>
+              ) : (
+                <span className="is-disabled">← Previous</span>
+              )}
+
+              <span className="history-page-count">
+                Page {currentPage} of {totalPages}
+              </span>
+
+              {currentPage < totalPages ? (
+                <Link href={`/upload?page=${currentPage + 1}`} scroll={false}>
+                  Next →
+                </Link>
+              ) : (
+                <span className="is-disabled">Next →</span>
+              )}
+            </nav>
           )}
         </section>
       </main>
