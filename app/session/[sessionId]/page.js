@@ -15,7 +15,7 @@ export default async function CoachingSessionPage({ params }) {
 
   const { data: coachingSession } = await supabase
     .from("coaching_sessions")
-    .select("id")
+    .select("id, ended_at")
     .eq("id", sessionId)
     .eq("user_id", user.id)
     .maybeSingle();
@@ -121,6 +121,7 @@ export default async function CoachingSessionPage({ params }) {
           userId={user.id}
           initialMessages={initialMessages}
           initialProgressState={progressState}
+          sessionEndedAt={coachingSession.ended_at}
         />
       </main>
     </>
