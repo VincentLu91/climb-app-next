@@ -2097,3 +2097,59 @@ input {
     flex-direction: column;
   }
 }
+
+.history-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  margin-top: 30px;
+  font:
+    700 10px var(--font-geist-mono),
+    monospace;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.history-pagination a,
+.history-pagination .is-disabled {
+  min-width: 104px;
+  padding: 11px 14px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  text-align: center;
+}
+
+.history-pagination a {
+  color: var(--foreground);
+  transition:
+    color 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.history-pagination a:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.history-pagination .is-disabled {
+  color: var(--muted);
+  opacity: 0.4;
+}
+
+.history-page-count {
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+@media (max-width: 620px) {
+  .history-pagination {
+    gap: 10px;
+  }
+
+  .history-pagination a,
+  .history-pagination .is-disabled {
+    min-width: 92px;
+    padding: 10px;
+  }
+}
