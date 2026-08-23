@@ -54,8 +54,13 @@ export default function ChatPanel({
   userId,
   initialMessages = [],
   initialProgressState = null,
+  sessionEndedAt = null,
 }) {
   const router = useRouter();
+  const [sessionFinished, setSessionFinished] = useState(
+    Boolean(sessionEndedAt),
+  );
+
   const [typing, setTyping] = useState(false);
   const [messages, setMessages] = useState(initialMessages);
   const [inputValue, setInputValue] = useState("");
@@ -232,6 +237,7 @@ export default function ChatPanel({
         alert("Failed to finish this problem.");
         return;
       }
+      setSessionFinished(true);
       router.push("/upload");
       router.refresh();
     } catch {
@@ -473,47 +479,51 @@ export default function ChatPanel({
           )}
           <div ref={endRef} />
         </div>
-        <div className="composer">
-          <div className="composer-attachment-row">
-            <UploadForm
-              ref={uploadFormRef}
-              initialCoachingSessionId={coachingSessionId}
-              composerMode
-              messageText={inputValue}
-              onAttachmentSent={() => setInputValue("")}
-            />
-            <span>Photo · 1 credit · Video · 2 credits</span>
-          </div>
+        {!sessionFinished && (
+          <>
+            <div className="composer">
+              <div className="composer-attachment-row">
+                <UploadForm
+                  ref={uploadFormRef}
+                  initialCoachingSessionId={coachingSessionId}
+                  composerMode
+                  messageText={inputValue}
+                  onAttachmentSent={() => setInputValue("")}
+                />
+                <span>Photo · 1 credit · Video · 2 credits</span>
+              </div>
 
-          <div className="composer-message-row">
-            <input
-              value={inputValue}
-              onChange={(event) => setInputValue(event.target.value)}
-              onKeyDown={(event) => {
-                if (
-                  event.key === "Enter" &&
-                  !event.nativeEvent.isComposing &&
-                  event.keyCode !== 229
-                )
-                  send();
-              }}
-              placeholder="Ask your coach..."
-              aria-label="Ask your coach"
-            />
-            <button type="button" onClick={send} aria-label="Send message">
-              Send
+              <div className="composer-message-row">
+                <input
+                  value={inputValue}
+                  onChange={(event) => setInputValue(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (
+                      event.key === "Enter" &&
+                      !event.nativeEvent.isComposing &&
+                      event.keyCode !== 229
+                    )
+                      send();
+                  }}
+                  placeholder="Ask your coach..."
+                  aria-label="Ask your coach"
+                />
+                <button type="button" onClick={send} aria-label="Send message">
+                  Send
+                </button>
+              </div>
+            </div>
+            <button
+              className="finish-button"
+              type="button"
+              onClick={finishProblem}
+              disabled={finishing}
+            >
+              {finishing ? "Finishing..." : "Finish problem · 1 credit"}
+              <span>→</span>
             </button>
-          </div>
-        </div>
-        <button
-          className="finish-button"
-          type="button"
-          onClick={finishProblem}
-          disabled={finishing}
-        >
-          {finishing ? "Finishing..." : "Finish problem · 1 credit"}
-          <span>→</span>
-        </button>
+          </>
+        )}
       </aside>
     </section>
   );
