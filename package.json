@@ -9,25 +9,26 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@remotion/cli": "4.0.512",
-    "@remotion/media": "4.0.512",
-    "@remotion/vercel": "^4.0.512",
-    "@remotion/web-renderer": "4.0.512",
+    "@remotion/cli": "4.0.515",
+    "@remotion/media": "4.0.515",
+    "@remotion/vercel": "^4.0.515",
+    "@remotion/web-renderer": "4.0.515",
     "@supabase/ssr": "^0.12.4",
     "@supabase/supabase-js": "^2.112.3",
-    "@vercel/functions": "^3.4.1",
-    "@vercel/sandbox": "^1.6.0",
-    "next": "16.3.0",
-    "posthog-js": "^1.417.4",
+    "@vercel/functions": "^3.9.5",
+    "@vercel/sandbox": "^3.1.0",
+    "next": "16.3.2",
+    "npm-check-updates": "^23.1.0",
+    "posthog-js": "^1.418.10",
     "react": "19.2.8",
     "react-dom": "19.2.8",
-    "remotion": "4.0.512",
+    "remotion": "4.0.515",
     "stripe": "^22.5.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
-    "eslint": "^9",
-    "eslint-config-next": "16.3.0",
+    "eslint": "^10",
+    "eslint-config-next": "16.3.2",
     "tailwindcss": "^4"
   }
 }
