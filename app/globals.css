@@ -540,13 +540,87 @@ input {
 .finish-button span {
   color: var(--accent);
 }
-.session-intro > button {
+.session-actions > button {
   background: transparent;
   color: var(--muted);
   border: 1px solid var(--line);
   padding: 10px 14px;
   font-size: 12px;
   cursor: pointer;
+}
+.session-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+.delete-session-button {
+  background: transparent;
+  color: var(--warm);
+  border: 1px solid var(--warm);
+  padding: 8px 12px;
+  font-size: 11px;
+  cursor: pointer;
+}
+.delete-session-button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+.delete-session-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 10, 9, 0.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 50;
+}
+.delete-session-modal {
+  width: 100%;
+  max-width: 420px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 24px;
+  box-shadow: 0 24px 80px #0008;
+}
+.delete-session-modal h2 {
+  margin: 0 0 12px;
+  font-size: 20px;
+  letter-spacing: -0.03em;
+}
+.delete-session-modal p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.delete-session-modal-error {
+  color: var(--warm);
+  margin-top: 14px !important;
+}
+.delete-session-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 22px;
+}
+.delete-session-modal-actions button {
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--muted);
+  padding: 9px 14px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.delete-session-modal-actions button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+.delete-session-modal-confirm {
+  border-color: var(--warm) !important;
+  color: var(--warm) !important;
 }
 @media (max-width: 800px) {
   .session-shell {
@@ -556,7 +630,8 @@ input {
     display: block;
     padding: 38px 0 28px;
   }
-  .session-intro > button {
+  .session-actions {
+    align-items: flex-start;
     margin-top: 22px;
   }
   .coaching-grid {
