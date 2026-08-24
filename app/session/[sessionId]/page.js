@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import ChatPanel from "./chat-panel";
 import ShareClipButton from "./share-clip-button";
+import DeleteSessionButton from "./delete-session-button";
 import AuthenticatedNavbar from "@/components/authenticated-navbar";
 
 export default async function CoachingSessionPage({ params }) {
@@ -111,10 +112,13 @@ export default async function CoachingSessionPage({ params }) {
               Your coach is tracking the details between every attempt.
             </p>
           </div>
-          <ShareClipButton
-            videoSrc={latestVideoUrl}
-            coachingCaption={latestAnalysis?.result ?? ""}
-          />
+          <div className="session-actions">
+            <ShareClipButton
+              videoSrc={latestVideoUrl}
+              coachingCaption={latestAnalysis?.result ?? ""}
+            />
+            <DeleteSessionButton sessionId={sessionId} />
+          </div>
         </div>
         <ChatPanel
           coachingSessionId={sessionId}
