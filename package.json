@@ -16,10 +16,10 @@
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.116.0",
     "@vercel/functions": "^3.9.7",
-    "@vercel/sandbox": "^3.2.2",
-    "next": "16.3.4",
+    "@vercel/sandbox": "^3.3.0",
+    "next": "16.3.5",
     "npm-check-updates": "^23.1.0",
-    "posthog-js": "^1.429.5",
+    "posthog-js": "^1.430.2",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "remotion": "4.0.523",
@@ -28,7 +28,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "eslint": "^10",
-    "eslint-config-next": "16.3.4",
+    "eslint-config-next": "16.3.5",
     "tailwindcss": "^4"
   }
 }
