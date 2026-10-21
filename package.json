@@ -9,20 +9,20 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@remotion/cli": "4.0.536",
-    "@remotion/media": "4.0.536",
-    "@remotion/vercel": "^4.0.536",
-    "@remotion/web-renderer": "4.0.536",
+    "@remotion/cli": "4.0.537",
+    "@remotion/media": "4.0.537",
+    "@remotion/vercel": "^4.0.537",
+    "@remotion/web-renderer": "4.0.537",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.118.0",
-    "@vercel/functions": "^3.10.1",
+    "@vercel/functions": "^3.10.2",
     "@vercel/sandbox": "^3.8.0",
     "next": "16.4.2",
     "npm-check-updates": "^23.1.1",
-    "posthog-js": "^1.438.12",
+    "posthog-js": "^1.438.13",
     "react": "19.3.1",
     "react-dom": "19.3.1",
-    "remotion": "4.0.536",
+    "remotion": "4.0.537",
     "stripe": "^22.6.2"
   },
   "devDependencies": {
